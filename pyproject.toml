@@ -1,0 +1,37 @@
+[project]
+name = "math-atlas"
+version = "0.1.0"
+description = "Construction for knowledge graph of mathematics"
+authors = [
+    { name = "Nilay Patel", email = "nilaypatel2@gmail.com" }
+]
+dependencies = [
+    "chromadb>=1.4.1",
+    "langchain>=1.2.8",
+    "pandas>=3.0.0",
+    "scikit-learn>=1.8.0",
+    "langchain-chroma>=1.1.0",
+    "requests>=2.32.5",
+    "langchain-localai>=1.0.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[project.scripts]
+"mathatlas" = "mathatlas:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mathatlas"]
+
+
