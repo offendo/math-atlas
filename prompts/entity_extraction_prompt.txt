@@ -1,0 +1,131 @@
+## Task
+
+You are given a block of markdown mathematical text.
+Your task is to identify and extract all contiguous snippets that correspond to any of the following mathematical entity types:
+
+- Definition
+- Theorem (this includes propositions, lemmas, corollaries)
+- Example
+- Exercise
+- Proof
+
+Only extract genuine mathematical content of these types.
+Ignore and do NOT extract:
+
+- General exposition or narrative explanation
+- Chapter titles, section headings, or indexes
+- Transitional text or motivation
+- References to earlier or later results without stating them
+
+
+## What qualifies as an entity
+
+### 1. Definitions (very important)
+
+A definition does NOT require a heading or numbering.
+
+You must extract a block as a definition if its primary purpose is to introduce, name, or precisely describe a mathematical object or concept, even if it appears inline in the text.
+
+Treat a block as a definition if it contains definitional language, including but not limited to:
+
+- “is called”
+- “is defined as”
+- “we call”
+- “is said to be”
+- “the … of … is”
+- “an element … is”
+- an emphasized or italicized term followed by an explanation
+- a mathematical object followed by a copular verb (“is”, “are”) and a precise condition
+
+If a paragraph answers the question “What is X?”, it is a definition.
+
+A single paragraph may introduce multiple concepts (e.g., minimum polynomial and conjugate).
+If so, extract the entire paragraph as one definition entity.
+
+Unlabeled definitions are mandatory.
+Failure to extract them is considered an incorrect output.
+
+
+### 2. Theorems
+
+Extract any explicitly stated mathematical claim intended to be true, including:
+
+- Theorem
+- Proposition
+- Lemma
+- Corollary
+
+Treat all of these as type "theorem".
+
+The entity must assert a result, not merely mention one.
+
+
+### 3. Proofs
+
+Extract a proof only when:
+
+- It is explicitly labeled (e.g., “Proof.”, “Proof of Proposition 3.2.”), and
+- It contains actual mathematical reasoning or argument
+
+Special rule:
+If a proof appears only as part of an exercise prompt (e.g., “Prove that …”) and contains no mathematical argument beyond the statement itself, do NOT extract a separate proof entity.
+
+
+### 4. Examples
+
+Extract examples that demonstrate or instantiate a mathematical concept, whether labeled (“Example 2.3”) or clearly signposted in the text.
+
+
+### 5. Exercises
+
+Extract exercises or problems intended for the reader to solve, whether labeled or clearly formatted as such.
+
+
+## Output format
+
+For each extracted entity, produce a JSON object with the following keys:
+
+- "type": one of "definition", "theorem", "example", "exercise", "proof" (always lowercase)
+- "identifier": a concise label taken verbatim from the text introducing the entity
+  (e.g., "Definition 6.9.", "Proposition 6.11.", "Proof.", "Exercise 7(b)")
+  If no explicit label, number, or name is present, set this to null.
+- "text": the exact text of the entity, copied verbatim.
+  Do NOT summarize, paraphrase, normalize spacing, or rewrite mathematics.
+
+
+## Ordering rules
+
+- Preserve the original order of appearance.
+- Each entity must be its own JSON object.
+- Do not merge separate entities.
+- Do not invent or infer missing text.
+
+
+## Reasoning step (required)
+
+Before producing the final output:
+
+1. Scan the text systematically from start to end.
+2. Actively search for:
+   - Explicit labels (Definition, Theorem, Proof, etc.)
+   - Implicit definitions using definitional language
+3. For each candidate block:
+   - Decide whether it is genuine mathematical content
+   - Confirm it matches one of the allowed entity types
+4. Exclude all non-mathematical exposition.
+
+Only after completing this identification and segmentation should you produce the output.
+
+
+## Output constraints
+
+- Respond with a JSON list only
+- Do NOT wrap the JSON in code fences
+- Do NOT include explanations, commentary, or reasoning in the output
+- If no valid entities are found, return an empty list: []
+
+
+## Priority reminder
+
+If a block introduces or defines a mathematical object — even without a heading — it MUST be extracted as a "definition".
+

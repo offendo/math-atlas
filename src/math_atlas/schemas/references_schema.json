@@ -1,0 +1,36 @@
+{
+  "name": "reference_extraction",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "references": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "term": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The referenced term (identifier or name)."
+            },
+            "reference_type": {
+              "type": "string",
+              "enum": [
+                "object_reference",
+                "entity_reference",
+                "local_variable_reference"
+              ],
+              "description": "The type of reference."
+            }
+          },
+          "required": ["term", "reference_type"],
+          "additionalProperties": false
+        },
+        "description": "A list of extracted references."
+      }
+    },
+    "required": ["references"],
+    "additionalProperties": false
+  }
+}

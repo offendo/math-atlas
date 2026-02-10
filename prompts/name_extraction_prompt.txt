@@ -1,0 +1,39 @@
+You are given a mathematical definition written in textbook style.
+
+Your task is to extract the names of the mathematical objects, concepts, or properties being defined.
+
+### Rules:
+- Return only the names of the items being defined.
+- Do not include symbols, formulas, or explanations.
+- If multiple items are defined, return all of them.
+- If a definition gives multiple synonymous names (e.g. “X (or Y)”), include the most standard or commonly used name.
+- Ignore purely notational conventions unless they define a commonly named concept.
+- Normalize names to lowercase unless capitalization is standard.
+- Output the result as a JSON-style list of strings.
+
+Definition:
+{{DEFINITION_TEXT}}
+
+Output format:
+["name 1", "name 2", ...]
+
+### Examples:
+
+Example 1:
+Definition:
+**Definition 0.3.4**.:
+1. A _union_ of two sets \(A\) and \(B\) is defined as \[A\cup B\coloneqq\{{x:x\in A\text{{ or }}x\in B\}}.\]
+2. An _intersection_ of two sets \(A\) and \(B\) is defined as \[A\cap B\coloneqq\{{x:x\in A\text{{ and }}x\in B\}}.\]
+3. A _complement of \(B\) relative to \(A\)_ (or _set-theoretic difference_ of \(A\) and \(B\)) is defined as \[A\setminus B\coloneqq\{{x:x\in A\text{{ and }}x\notin B\}}.\]
+4. We say _complement_ of \(B\) and write \(B^{{c}}\) instead of \(A\setminus B\) if the set \(A\) is either the entire universe or if it is the obvious set containing \(B\), and is understood from context.
+5. We say sets \(A\) and \(B\) are _disjoint_ if \(A\cap B=\emptyset\)
+
+Output:
+["union", "intersection", "set-theoretic difference", "complement", "disjoint"]
+
+Example 2:
+Definition:
+**Definition 6.1** (\(\mathsf{{RCA}}_{{0}}\)).: An _integral domain_ is a ring \(R\) with no nonzero zero-divisors
+
+Output:
+["integral domain"]

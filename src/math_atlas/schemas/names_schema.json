@@ -1,0 +1,15 @@
+{
+  "name": "name_extraction",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "names": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "required": ["names"],
+    "additionalProperties": false
+  }
+}

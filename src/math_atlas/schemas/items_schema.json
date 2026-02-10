@@ -1,0 +1,35 @@
+{
+  "name": "math_extraction",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "description": "A list of mathematical blocks extracted from the text.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["definition", "theorem", "proof", "example", "exercise"],
+              "description": "The category of the mathematical content."
+            },
+            "identifier": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "description": "The label or name of the block (e.g., 'Theorem 1.1'), if available."
+            },
+            "text": {
+              "type": "string",
+              "description": "The full text content of the block, including LaTeX."
+            }
+          },
+          "required": ["type", "identifier", "text"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["items"],
+    "additionalProperties": false
+  }
+}

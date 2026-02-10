@@ -7,12 +7,12 @@ from uuid import uuid4
 
 import pandas as pd
 import typer
-from more_itertools import chunked
-from tqdm import tqdm
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import DataFrameLoader
 from langchain_core.documents import Document
 from langchain_localai import LocalAIEmbeddings
+from more_itertools import chunked
+from tqdm import tqdm
 
 METADATA_COLUMNS = ("type", "identifier", "block_start", "block_end", "file_id")
 
@@ -99,9 +99,11 @@ def add_documents_to_chroma(
     if ids is None:
         ids = [doc.metadata.get("uuid", str(uuid4())) for doc in docs_list]
 
-    for batch in tqdm(chunked(zip(docs_list, list(ids)), n=5000), total=int(len(docs_list) / 5000) + 1):
+    for batch in tqdm(
+        chunked(zip(docs_list, list(ids)), n=5000), total=int(len(docs_list) / 5000) + 1
+    ):
         batch_docs, batch_ids = zip(*batch)
-        chroma.add_documents(batch_docs, ids=batch_ids)
+        chroma.add_documents(list(batch_docs), ids=batch_ids)
     return chroma
 
 
