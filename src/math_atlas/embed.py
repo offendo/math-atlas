@@ -7,6 +7,8 @@ from uuid import uuid4
 
 import pandas as pd
 import typer
+from more_itertools import chunked
+from tqdm import tqdm
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import DataFrameLoader
 from langchain_core.documents import Document
@@ -48,15 +50,15 @@ def load_documents_from_json(json_path: str | Path) -> LoadedDocuments:
     if "text" not in df.columns:
         raise ValueError("Expected a 'text' column in the JSON file.")
 
+    # replace document with formatted text with metadata so it includes it in embedding
+    df["text"] = df.apply(format_row, axis=1)
+
     metadata_cols = [col for col in METADATA_COLUMNS if col in df.columns]
     keep_cols = ["text", *metadata_cols]
     df = df[keep_cols]
 
     if "item_start" in df.columns:
         df = df.drop(columns=["item_start"])
-
-    # replace document with formatted text with metadata so it includes it in embedding
-    df["text"] = df.apply(format_row, axis=1)
 
     loader = DataFrameLoader(df, page_content_column="text")
     documents = loader.load()
@@ -97,7 +99,9 @@ def add_documents_to_chroma(
     if ids is None:
         ids = [doc.metadata.get("uuid", str(uuid4())) for doc in docs_list]
 
-    chroma.add_documents(docs_list, ids=list(ids))
+    for batch in tqdm(chunked(zip(docs_list, list(ids)), n=5000), total=int(len(docs_list) / 5000) + 1):
+        batch_docs, batch_ids = zip(*batch)
+        chroma.add_documents(batch_docs, ids=batch_ids)
     return chroma
 
 
