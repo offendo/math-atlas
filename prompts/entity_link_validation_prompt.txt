@@ -1,0 +1,142 @@
+### Task
+
+Your task is to identify which (if any) of the provided candidate search results correctly correspond to a given mathematical search term, based strictly on its usage in the provided context.
+
+You will be given:
+
+- Search term: the name of an entity, such as "Definition 4.5" or "Proposition 1.2".
+- Context: a mathematical definition, theorem, or statement that refers to the search term.
+- File ID: the file in which the search term appears.
+- Candidate search results: a list of candidate entities, definitions, or theorems, each with metadata.
+
+Your goal is to select ONLY candidates that refer to the EXACT SAME mathematical concept as the search term in this context.
+
+---
+
+### Decision Criteria (in priority order)
+
+Apply these criteria strictly and in order:
+
+1. Matching identifier
+   Select a candidate only if the identifier matches the search term. For example, a candidate labeled "Proposition 2.3" is NOT a match for a query "Theorem 2.3". However, it might be a valid match for "Proposition 2.3 from the previous section", even though the text is not an exact match.
+
+2. Context must agree, not just the name
+   Matching names alone are NOT sufficient. The candidate’s definition/statement must make sense in the context where the search term is used. For example, if the search context is "...$G$ as defined in Lemma 4.4", then the correct candidate MUST define an object called "G".
+
+5. Precision over recall, but avoid excessive rejection
+   Only select candidates when there is clear positive evidence of equivalence.
+   However, do NOT reject a candidate solely because wording differs, if the identifier and context both agree.
+
+6. When unsure, reject
+   If the candidate might be correct but there is insufficient evidence, do not select it.
+
+---
+
+### Output Format
+
+Return a JSON object:
+
+{
+  "best_match": index
+}
+
+- "best_match" must contain only an integer index from the candidate list.
+- If no candidates match, return null
+- Do NOT include any candidates unless you have positive evidence they are correct.
+
+### Example Input
+**Search term:** Proposition 2.13
+**File ID:** Basic Algebra - Knapp
+**Context:**
+
+If a vector space $U$ is isomorphic to a vector space $V$, then the isomorphism carries any basis of $U$ to a basis of $V$, and hence $U$ and $V$ have the same dimension. Conversely if they have the same dimension, let $(u_{1},\ldots,u_{n})$ be an ordered basis of $U$, and let $(v_{1},\ldots,v_{n})$ be an ordered basis of $V$. Define $\ell(u_{j})=v_{j}$ for $1\leq j\leq n$, and let $L:U\to V$ be the linear extension of $\ell$ given by Proposition 2.13. Then $L$ is linear, one-one, and onto, and hence $U$ is isomorphic to $V$.
+**Search results:**
+0.  -- Type: theorem
+-- Names:
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.11
+-- Document:
+**Proposition 2.11.** If \(L:\mathbb{F}^{n}\to\mathbb{F}^{k}\) is a linear map, then there exists a unique \(k\)-by-\(n\) matrix \(A\) such that \(L(v)=Av\) for all \(v\) in \(\mathbb{F}^{n}\).
+
+1.  -- Type: theorem
+-- Names:
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.13
+-- Document:
+**Proposition 2.13.** Let \(U\) and \(V\) be vector spaces over \(\mathbb{F}\), and let \(\Gamma\) be a basis of \(U\). Then to each function \(\ell:\Gamma\to V\) corresponds one and only one linear map \(L:U\to V\) whose restriction to \(\Gamma\) has \(L\big{|}_{\Gamma}=\ell\).
+
+2.  -- Type: theorem
+-- Names:
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Theorem 2.14
+-- Document:
+**Theorem 2.14.** If \(L:U\to V\) is a linear map between finite-dimensional vector spaces over \(\mathbb{F}\) and if \(\Gamma\) and \(\Delta\) are ordered bases of \(U\) and \(V\), respectively, then
+
+\[\left(\begin{array}{c}L(u)\\ \Delta\end{array}\right)=\left(\begin{array}{c}L\\ \Delta\Gamma\end{array}\right)\left(\begin{array}{c}u\\ \Gamma\end{array}\right)\]
+
+for all \(u\) in \(U\).
+
+3.  -- Type: theorem
+-- Names: canonical map
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.22.
+-- Document:
+If $V$ is any finite-dimensional vector space over $\mathbb{F}$, then the canonical map $\iota:V\to V^{\prime\prime}$ is one-one onto.
+
+4.  -- Type: theorem
+-- Names:
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.12
+-- Document:
+**Proposition 2.12.** Let \(L:\mathbb{F}^{n}\to\mathbb{F}^{m}\) be the linear map corresponding to an \(m\)-by-\(n\) matrix \(A\), and let \(M:\mathbb{F}^{m}\to\mathbb{F}^{k}\) be the linear map corresponding to a \(k\)-by-\(m\) matrix \(B\). Then the composite function \(M\circ L:\mathbb{F}^{n}\to\mathbb{F}^{k}\) is linear, and it corresponds to the \(k\)-by-\(n\) matrix \(BA\).
+
+5.  -- Type: theorem
+-- Names: similar matrices
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.17.
+-- Document:
+Let $L:V\to V$ be a linear map on a finite-dimensional vector space, and let $A$ be the matrix of $L$ relative to an ordered basis $\Gamma$ (in domain and range). Then the matrix of $L$ in any other ordered basis $\Delta$ is of the form $C^{-1}\,AC$ for some invertible matrix $C$ depending on $\Delta$.
+
+6.  -- Type: theorem
+-- Names:
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.2
+-- Document:
+**Proposition 2.2**.: Let \(V\) be a vector space over \(\mathbb{F}\). If \(V\) has a finite spanning set \(\{v_{1},\,\ldots,\,v_{m}\}\), then any linearly independent set in \(V\) has \(\leq m\) elements.
+
+7.  -- Type: theorem
+-- Names:
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.1.
+-- Document:
+**Proposition 2.1.** Let \(V\) be a vector space over \(\mathbb{F}\).
+
+(a) If \(\{v_{\alpha}\}\) is a linearly independent subset of \(V\) that is maximal with respect to the property of being linearly independent (i.e., has the property of being strictly contained in no linearly independent set), then \(\{v_{\alpha}\}\) is a basis of \(V\).
+
+(b) If \(\{v_{\alpha}\}\) is a spanning set for \(V\) that is minimal with respect to the property of spanning (i.e., has the property of strictly containing no spanning set), then \(\{v_{\alpha}\}\) is a basis of \(V\).
+
+8.  -- Type: theorem
+-- Names: contragredient
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 2.21.
+-- Document:
+Let $L:U\to V$ be a linear map between finite-dimensional vector spaces, let $L^{t}:V^{\prime}\to U^{\prime}$ be its contragredient, let $\Gamma$ and $\Delta$ be respective ordered bases of $U$ and $V$, and let $\Gamma^{\prime}$ and $\Delta^{\prime}$ be their dual ordered bases. Then
+\[\left(\begin{array}{c}L^{t}\\ \Gamma^{\prime}\Delta^{\prime}\end{array}\right)=\left(\begin{array}{c}L\\ \Delta\Gamma\end{array}\right).\]
+
+9.  -- Type: theorem
+-- Names: greatest common divisor
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: Proposition 1.2
+-- Document:
+Let \(a\) and \(b\) be integers with \(b\neq 0\), and let \(d=\operatorname{GCD}(a,\,b)\). Then
+
+1. the number \(r_{n}\) in the Euclidean algorithm is exactly \(d\),
+2. any divisor \(d^{\prime}\) of both \(a\) and \(b\) necessarily divides \(d\),
+3. there exist integers \(x\) and \(y\) such that \(ax+by=d\).
+
+### Example Output
+{
+  "best_match": 1
+}
+**Reasoning:**
+The context uses "Proposition 2.13" to refer to the definition of an object "$\ell$". Candidate 1 has a matching identifier ("Proposition 2.13") and also defines an object called "$\ell$". This clearly is the correct reference.

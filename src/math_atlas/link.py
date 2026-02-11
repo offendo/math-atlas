@@ -17,7 +17,7 @@ class MathAtlasLinker:
     def __init__(self, linker_url: str, linker_model: str) -> None:
         self.async_client = AsyncOpenAI(base_url=linker_url)
         self.linker_model = linker_model
-        with open("prompts/link_validation_prompt.txt", "r") as f:
+        with open("prompts/object_link_validation_prompt.txt", "r") as f:
             self.object_link_prompt = f.read()
         with open("prompts/entity_link_validation_prompt.txt", "r") as f:
             self.entity_link_prompt = f.read()
@@ -138,7 +138,14 @@ async def _run_linker(
                         filter_type={
                             "$and": [
                                 {"file_id": row.file_id},
-                                {"block_end": {"$le": row.block_end}},
+                                {"block_end": {"$lte": int(row.block_end)}},
+                                {
+                                    "$or": [
+                                        {"type": "definition"},
+                                        {"type": "example"},
+                                        {"type": "theorem"},
+                                    ]
+                                },
                             ]
                         },
                     )
