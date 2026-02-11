@@ -12,6 +12,7 @@ from openai import AsyncOpenAI, OpenAI
 from tqdm import tqdm
 from tqdm.asyncio import tqdm as async_tqdm
 
+LinkType = Literal["object", "entity"]
 
 class MathAtlasRetriever:
     def __init__(
@@ -35,14 +36,13 @@ class MathAtlasRetriever:
         with open("schemas/link_schema.json", "r") as f:
             self.link_schema = json.load(f)
 
-    def retrieve(self, references: list[str], n_results: int, type: str | None = None):
-        queries = [f"""Find the definition of \"{ref}\"""" for ref in references]
-        filter = {"type": type} if type else None
+    def retrieve(self, references: list[str], query_template: str, n_results: int, filter_type: dict | None = None):
+        queries = [query_template.format(ref) for ref in references]
         embeddings = self.embeddings.embed_documents(queries)
         results = self.chroma.query(
             query_embeddings=embeddings,  # type:ignore
             n_results=n_results,
-            where=filter,  # type:ignore
+            where=filter_type,  # type:ignore
             include=["documents", "metadatas", "distances"],
         )
         return results
@@ -56,29 +56,29 @@ class MathAtlasRetriever:
             parts.append(f"{i}. {doc}")
         return "\n".join(parts)
 
-    def link_batch(
-        self,
-        examples: list[dict[str, str]],
-        type: str | None = None,
-    ):
-        return asyncio.run(self.link_batch_async(examples, type))
-
     async def link_batch_async(
         self,
         examples: list[dict[str, str]],
-        type: str | None = None,
+        link_type: LinkType = 'object',
+        filter_type: str | dict | None = None,
     ):
         # Retrieve candidate results for each example
+        if link_type == 'object':
+            query_template = "Find the definition for \"{}\""
+        else:
+            query_template = "Retrieve the document which matches the entity called \"{}\"."
+
         references = [ex["reference"] for ex in examples]
-        results = self.retrieve(references, 10, type=type)
+        results = self.retrieve(references, 10, query_template=query_template, filter_type=filter_type)
 
         documents = results["documents"] or []
         metadatas = results["metadatas"] or []
 
         tasks = []
         for ex, docs in zip(examples, documents):
+            prompt = self.object_link_prompt if link_type == 'object' else self.entity_link_prompt
             messages = [
-                {"role": "system", "content": self.link_prompt},
+                {"role": "system", "content": self.object_link_prompt},
                 {
                     "role": "user",
                     "content": self._format_link_prompt(
@@ -106,7 +106,7 @@ class MathAtlasRetriever:
             matches = json.loads(content)["best_match"] if content else []
             records = []
             for i in matches:
-                records.append({"document": docs[i], "metadata": metas[i]})
+                records.append(metas[i]["uuid"])
             batch_records.append(records)
 
         return batch_records
@@ -115,11 +115,45 @@ class MathAtlasRetriever:
 app = typer.Typer(add_completion=False, help="Link references to math-atlas entries.")
 
 
-def _normalize_reference(reference: object) -> str:
-    if isinstance(reference, dict):
-        term = reference.get("term")
-        return term if term is not None else json.dumps(reference)
-    return str(reference)
+async def _run_linker(retriever: MathAtlasRetriever, df: pd.DataFrame):
+    semaphore = asyncio.Semaphore(20)
+
+    async def process_async(row):
+        async with semaphore:
+            # Link object refs
+            batch = [
+                {
+                    "reference": reference,
+                    "context": row["text"],
+                    "file_id": row["file_id"],
+                }
+                for reference in row.object_references
+            ]
+            if not batch:
+                object_links = []
+            else:
+                object_links = await retriever.link_batch_async(batch, link_type='object', filter_type={'type': 'definition'})
+
+            # Link entity refs
+            batch = [
+                {
+                    "reference": reference,
+                    "context": row["text"],
+                    "file_id": row["file_id"],
+                }
+                for reference in row.entity_references
+            ]
+            if not batch:
+                entity_links = [] 
+            else:
+                entity_links = await retriever.link_batch_async(batch, link_type='entity', filter_type={'$and': [{'file_id': }]})
+
+            return {'object_links': object_links, 'entity_links': entity_links}
+
+    linked_results = await async_tqdm.gather(
+        *[process_async(row) for idx, row in df.iterrows()], desc="Linking"
+    )
+    return linked_results
 
 
 @app.command("link")
@@ -144,27 +178,9 @@ def link(
         collection_name=collection_name,
     )
 
-    async def process_async(row):
-        references = row.references
-        examples = [
-            {
-                "reference": _normalize_reference(reference),
-                "context": row["text"],
-                "file_id": row["file_id"],
-            }
-            for reference in references
-            if reference["reference_type"] == "object_reference"
-        ]
-        if not examples:
-            return []
-        linked = await retriever.link_batch_async(examples, type="definition")
-        return linked
-
-    linked_results = async_tqdm.gather(
-        *[process_async(row) for idx, row in df.iterrows()], desc="Linking"
-    )
-
-    df["object_links"] = linked_results
+    links = asyncio.run(_run_linker(retriever, df))
+    df["object_links"] = [l['object_links'] for l in links]
+    df["entity_links"] = [l['entity_links'] for l in links]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_json(output_path)
 
