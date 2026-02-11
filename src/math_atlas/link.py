@@ -35,7 +35,7 @@ class MathAtlasLinker:
             parts.append(f"{i}. {doc}")
         return "\n".join(parts)
 
-    async def link_entity_async(
+    async def link(
         self,
         reference: str,
         file_id: str,
@@ -169,7 +169,7 @@ async def _run_linker(
             object_link_tasks = []
             for reference, candidates in zip(row.object_references, object_candidates):
                 object_link_tasks.append(
-                    linker.link_entity_async(
+                    linker.link(
                         reference,
                         file_id=row.file_id,
                         context=row.text,
@@ -180,7 +180,7 @@ async def _run_linker(
             entity_link_tasks = []
             for reference, candidates in zip(row.entity_references, entity_candidates):
                 entity_link_tasks.append(
-                    linker.link_entity_async(
+                    linker.link(
                         reference,
                         file_id=row.file_id,
                         context=row.text,
