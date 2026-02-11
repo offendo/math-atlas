@@ -10,7 +10,10 @@ import typer
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
-app = typer.Typer(help="Extract math-atlas entities, names, and references with vLLM.")
+app = typer.Typer(
+    help="Extract math-atlas entities, names, and references with vLLM.",
+    pretty_exceptions_show_locals=False,
+)
 
 SEM_LIMIT = 10
 DEFAULT_SERVER_URL = "http://localhost:8001/v1"

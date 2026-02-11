@@ -21,8 +21,10 @@ class MathAtlasLinker:
             self.object_link_prompt = f.read()
         with open("prompts/entity_link_validation_prompt.txt", "r") as f:
             self.entity_link_prompt = f.read()
-        with open("schemas/link_schema.json", "r") as f:
-            self.link_schema = json.load(f)
+        with open("schemas/object_link_schema.json", "r") as f:
+            self.object_link_schema = json.load(f)
+        with open("schemas/entity_link_schema.json", "r") as f:
+            self.entity_link_schema = json.load(f)
 
     def format_link_prompt(
         self, reference: str, file_id: str, context: str, search_results: list[str]
@@ -41,8 +43,8 @@ class MathAtlasLinker:
         candidates: dict[str, list[Any]],
         link_type: LinkType = "object",
     ):
-        documents = candidates["documents"] or []
-        metadatas = candidates["metadatas"] or []
+        documents = candidates["documents"][0]
+        metadatas = candidates["metadatas"][0]
 
         prompt = (
             self.object_link_prompt
@@ -61,16 +63,22 @@ class MathAtlasLinker:
                 ),
             },
         ]
+        schema = (
+            self.entity_link_schema
+            if link_type == "entity"
+            else self.object_link_schema
+        )
         response = await self.async_client.responses.create(
             model=self.linker_model,
             input=messages,  # type:ignore
             reasoning={"effort": "low"},
             max_output_tokens=1000,
-            text={"format": {"type": "json_schema", **self.link_schema}},  # type:ignore
+            text={"format": {"type": "json_schema", **schema}},  # type:ignore
         )
 
         content = response.output_text
         matches = json.loads(content)["best_match"] if content else []
+        matches = matches if isinstance(matches, list) else [matches]
         linked_ids = [metadatas[i]["uuid"] for i in matches]
 
         return linked_ids
@@ -106,7 +114,11 @@ class MathAtlasRetriever:
         return results
 
 
-app = typer.Typer(add_completion=False, help="Link references to math-atlas entries.")
+app = typer.Typer(
+    add_completion=False,
+    help="Link references to math-atlas entries.",
+    pretty_exceptions_show_locals=False,
+)
 
 
 async def _run_linker(

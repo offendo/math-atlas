@@ -107,7 +107,11 @@ def add_documents_to_chroma(
     return chroma
 
 
-app = typer.Typer(add_completion=False)
+app = typer.Typer(
+    add_completion=False,
+    help="Embed entities in mathatlas",
+    pretty_exceptions_show_locals=False,
+)
 
 
 @app.command("embed-json")
