@@ -1,0 +1,160 @@
+### Task
+
+Your task is to identify which (if any) of the provided candidate search results correctly correspond to a given mathematical search term, based strictly on its meaning in the provided context.
+
+You will be given:
+
+- Search term: the name of a mathematical concept.
+- Context: a mathematical definition, theorem, or statement that uses the search term.
+- File ID: the file in which the search term appears.
+- Candidate search results: a list of candidate concepts, definitions, or theorems, each with metadata.
+
+Your goal is to select ONLY candidates that refer to the EXACT SAME mathematical concept as the search term in this context.
+
+---
+
+### Decision Criteria (in priority order)
+
+Apply these criteria strictly and in order:
+
+1. Exact mathematical meaning required
+   Select a candidate only if it refers to the same mathematical object, property, structure, or theorem as used in the context.
+
+   Reject candidates that are:
+   - Broader concepts
+   - Narrower special cases (unless the context clearly refers to that special case)
+   - Related but distinct concepts
+   - Same name but different meaning in another field
+
+2. Context must agree, not just the name
+   Matching names alone are NOT sufficient. The candidate’s definition or description must match how the term is used in the provided context.
+
+3. Prefer the best representative
+   If multiple candidates refer to the same concept, select only the single best representative.
+   Prefer, in order:
+   - Candidates from the same File ID
+   - Candidates with more complete or precise definitions
+   - Candidates whose terminology most closely matches the context
+
+4. Compound terms
+   If the search term contains multiple components (e.g., "normal subgroup action"):
+   - Select the minimal set of candidates needed to fully cover the meaning.
+   - Do NOT select redundant or overlapping candidates.
+   - If full coverage is impossible, select only those that clearly match part of the meaning.
+
+5. Precision over recall, but avoid excessive rejection
+   Only select candidates when there is clear positive evidence of equivalence.
+   However, do NOT reject a candidate solely because wording differs, if the mathematical meaning is clearly the same.
+
+6. When unsure, reject
+   If the candidate might be correct but there is insufficient evidence, do not select it.
+
+---
+
+### Output Format
+
+Return a JSON object:
+
+{
+  "best_match": [indexes]
+}
+
+- "best_match" must contain only integer indexes from the candidate list.
+- If no candidates match, return an empty list.
+- Do NOT include any candidates unless you have positive evidence they are correct.
+
+### Example
+
+**Search term**: module
+**File ID**: Algebraic Number Theory - Lang
+**Context**:
+A fractional ideal of \(\mathfrak{o}\) in \(K\) is an \(\mathfrak{o}\)-module \(\mathfrak{a}\) contained in \(K\) such that there exists an element \(c\neq 0\) in \(\mathfrak{o}\) for which \(c\mathfrak{a}\subset\mathfrak{o}\).
+
+**Search Results**
+0.  -- Type: definition
+-- Names: factor module
+-- File ID: Noncommutative Algebra - Introduction to Noncommutative Algebra - Bresar
+-- Entity identifier: Definition 3.20
+-- Document:
+**Definition 3.20**: The $R$-module $M/L$ is called the **factor module**.
+
+1.  -- Type: definition
+-- Names: a-module
+-- File ID: Functional Analysis and Operator Algebras - Erdman
+-- Entity identifier: 14.1.8 Definition.
+-- Document:
+Let $A$ be an algebra. An $A$-module is an ordered quadruple $(V,+,M,\Phi)$ where $(V,+,M)$ is a vector space and $\Phi\colon A\to\mathfrak{L}(V)$ is an algebra homomorphism. If $A$ is unital we require also that $\Phi$ be unital.
+
+2.  -- Type: definition
+-- Names: module
+-- File ID: Algorithmic Algebra - Mishra
+-- Entity identifier: Definition 2.4.1
+-- Document:
+**Definition 2.4.1** (Modules): Given a ring $S$, an Abelian group $M$, and a mapping
+
+$$\mu : S\times M\to M\;:\; \langle s,x\rangle\mapsto sx,$$
+
+we say $M$ is an $S$-_module_ if, for all $s$, $t\in S$ and $x$, $y\in M$, the following axioms are satisfied:
+
+$$s(x+y) = sx+sy,$$
+$$(s+t)x = sx+tx,$$
+$$(st)x = s(tx),$$
+$$1x = x.$$
+
+3.  -- Type: definition
+-- Names: multimodule
+-- File ID: Elements of Mathematics - Algebra I - Bourbaki
+-- Entity identifier: Definition 13
+-- Document:
+_Let $(A_{i})_{\lambda\in L}$, $(B_{\lambda})_{\mu\in M}$ be two families of rings; an $((A_{i})_{\lambda},(B_{\lambda}))$-multimodule (or multimodule over the families of rings $(A_{i})_{\lambda\in L}$, $(B_{\lambda})_{\mu\in M}$) is a set $E$ with, for each $\lambda\in L$, a left $A_{i}$-module structure and, for each $\mu\in M_{\mu}$ a right $B_{\mu}$-module structure, all these module structures being compatible with one another._
+
+4.  -- Type: definition
+-- Names: simple module
+-- File ID: Algebra - Lang
+-- Entity identifier: nan
+-- Document:
+A module \(M\) is said to be **simple** if it does not contain any submodule other than \(0\) and \(M\) itself, and if \(M\neq 0\).
+
+5.  -- Type: definition
+-- Names: injective module
+-- File ID: Introduction to Representation Theory - Etingof
+-- Entity identifier: Definition 8.1.6
+-- Document:
+**Definition 8.1.6**.: A module satisfying any of the conditions (i)--(iii) of Theorem 8.1.5 is said to be **injective**.
+
+6.  -- Type: definition
+-- Names: semisimple module
+-- File ID: Basic Algebra - Knapp
+-- Entity identifier: nan
+-- Document:
+A semisimple module is a module generated by simple modules.
+
+7.  -- Type: definition
+-- Names: principal
+-- File ID: Algebra - Lang
+-- Entity identifier: nan
+-- Document:
+A module $M$ is called **principal** if there exists an element $x\in M$ such that $M=Ax$.
+
+8.  -- Type: definition
+-- Names: mod‑r
+-- File ID: Categories for the Working Mathematician - Maclane
+-- Entity identifier: nan
+-- Document:
+Mod‑$R$: Small right $R$‑modules.
+
+9.  -- Type: definition
+-- Names: module
+-- File ID: An Introduction to the Theory of Quantum Groups - Downie
+-- Entity identifier: Definition 2.21
+-- Document:
+**Definition 2.21** (Module).: Let \(R\) be an arbitrary ring. A left module over \(R\) (i.e. left \(R\)-module) is an abelian group \(M\) under addition together with an operation of \(R\) on \(M\) (\(R\times M\to M\) with \((r,m)\mapsto rm\)) such that for all \(r,s\in R\) and \(x,y\in M\) we have
+
+\[r(x+y) =rx+ry\] \[(r+s)x =rx+sx\] \[(rs)x =r(sx)\] \[1x =x\]
+
+**Expected output:**
+{
+    "best_match": [2]
+}
+**Reasoning:**
+The context uses "module" in the standard algebraic number theory sense: an \(\mathfrak{o}\)-module is an abelian group with scalar multiplication by ring elements satisfying the usual module axioms. Candidates [2] (Definition 2.4.1) and [9] (Definition 2.21) both give the general definition of a module over a ring, which matches exactly; candidate [2] is selected as the best representative.

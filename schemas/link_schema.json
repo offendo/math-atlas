@@ -1,0 +1,18 @@
+{
+  "name": "relation_extraction",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "best_match": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        }
+      }
+    },
+    "required": ["best_match"],
+    "additionalProperties": false
+  }
+}
