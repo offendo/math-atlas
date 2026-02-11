@@ -192,7 +192,10 @@ async def _run_linker(
             object_links = await asyncio.gather(*object_link_tasks)
             entity_links = await asyncio.gather(*entity_link_tasks)
 
-            return {"object_links": object_links, "entity_links": entity_links}
+            return {
+                "object_links": object_links,
+                "entity_links": [link[0] for link in entity_links],
+            }
 
     linked_results = await async_tqdm.gather(
         *[_helper(row) for idx, row in df.iterrows()], desc="Linking"
