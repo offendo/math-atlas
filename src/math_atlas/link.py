@@ -10,6 +10,7 @@ from langchain_core.documents import Document
 from langchain_localai import LocalAIEmbeddings
 from openai import AsyncOpenAI, OpenAI
 from tqdm import tqdm
+from tqdm.asyncio import tqdm as async_tqdm
 
 
 class MathAtlasRetriever:
@@ -39,9 +40,9 @@ class MathAtlasRetriever:
         filter = {"type": type} if type else None
         embeddings = self.embeddings.embed_documents(queries)
         results = self.chroma.query(
-            query_embeddings=embeddings,
+            query_embeddings=embeddings,  # type:ignore
             n_results=n_results,
-            where=filter,
+            where=filter,  # type:ignore
             include=["documents", "metadatas", "distances"],
         )
         return results
@@ -90,7 +91,7 @@ class MathAtlasRetriever:
             ]
             task = self.async_client.responses.create(
                 model=self.linker_model,
-                input=messages,
+                input=messages,  # type:ignore
                 reasoning={"effort": "low"},
                 max_output_tokens=1000,
                 text={"format": {"type": "json_schema", **self.link_schema}},  # type:ignore
@@ -131,7 +132,6 @@ def link(
     embedding_model: str = typer.Option(..., help="Embedding model name."),
     linker_model: str = typer.Option(..., help="Linker model name."),
     collection_name: str = typer.Option("mathatlas", help="Chroma collection name."),
-    batch_size: int = typer.Option(500, help="Number of rows per batch."),
 ) -> None:
     df = pd.read_json(input_path)
 
@@ -144,40 +144,25 @@ def link(
         collection_name=collection_name,
     )
 
-    linked_results = [None] * len(df)
-    rows = list(df.itertuples(index=True, name="Row"))
+    async def process_async(row):
+        references = row.references
+        examples = [
+            {
+                "reference": _normalize_reference(reference),
+                "context": row["text"],
+                "file_id": row["file_id"],
+            }
+            for reference in references
+            if reference["reference_type"] == "object_reference"
+        ]
+        if not examples:
+            return []
+        linked = await retriever.link_batch_async(examples, type="definition")
+        return linked
 
-    for start in tqdm(range(0, len(rows), batch_size), desc="Processing batches"):
-        batch_rows = rows[start : start + batch_size]
-        batch_examples: list[dict[str, str]] = []
-        example_row_indices: list[int] = []
-
-        for row in batch_rows:
-            references = row.references if isinstance(row.references, list) else []
-            for reference in references:
-                if reference.get("reference_type") != "object_reference":
-                    continue
-                batch_examples.append(
-                    {
-                        "reference": _normalize_reference(reference),
-                        "context": row.text,
-                        "file_id": row.file_id,
-                    }
-                )
-                example_row_indices.append(row.Index)
-
-        batch_links = (
-            retriever.link_batch(batch_examples, type="definition")
-            if batch_examples
-            else []
-        )
-
-        per_row_links: dict[int, list] = {row.Index: [] for row in batch_rows}
-        for row_index, linked in zip(example_row_indices, batch_links):
-            per_row_links[row_index].append(linked)
-
-        for row in batch_rows:
-            linked_results[row.Index] = per_row_links[row.Index]
+    linked_results = async_tqdm.gather(
+        *[process_async(row) for idx, row in df.iterrows()], desc="Linking"
+    )
 
     df["object_links"] = linked_results
     output_path.parent.mkdir(parents=True, exist_ok=True)
