@@ -194,7 +194,7 @@ async def _run_linker(
 
             return {
                 "object_links": object_links,
-                "entity_links": [link[0] for link in entity_links],
+                "entity_links": [link[0] if len(link) > 0 else None for link in entity_links],
             }
 
     linked_results = await async_tqdm.gather(
