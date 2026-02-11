@@ -22,6 +22,8 @@ anyio==4.12.1
     # via httpx
     # via openai
     # via watchfiles
+asttokens==3.0.1
+    # via stack-data
 attrs==25.4.0
     # via aiohttp
     # via jsonschema
@@ -39,7 +41,7 @@ certifi==2026.1.4
     # via requests
 charset-normalizer==3.4.4
     # via requests
-chromadb==1.4.1
+chromadb==1.3.5
     # via langchain-chroma
     # via math-atlas
 click==8.3.1
@@ -48,11 +50,15 @@ click==8.3.1
     # via uvicorn
 dataclasses-json==0.6.7
     # via langchain-community
+decorator==5.2.1
+    # via ipython
 distro==1.9.0
     # via openai
     # via posthog
 durationpy==0.10
     # via kubernetes
+executing==2.2.1
+    # via stack-data
 filelock==3.20.3
     # via huggingface-hub
 flatbuffers==25.12.19
@@ -64,6 +70,8 @@ fsspec==2026.2.0
     # via huggingface-hub
 googleapis-common-protos==1.72.0
     # via opentelemetry-exporter-otlp-proto-grpc
+greenlet==3.3.1
+    # via sqlalchemy
 grpcio==1.76.0
     # via chromadb
     # via opentelemetry-exporter-otlp-proto-grpc
@@ -95,6 +103,11 @@ importlib-metadata==8.7.1
     # via opentelemetry-api
 importlib-resources==6.5.2
     # via chromadb
+ipython==9.10.0
+ipython-pygments-lexers==1.1.1
+    # via ipython
+jedi==0.19.2
+    # via ipython
 jiter==0.13.0
     # via openai
 joblib==1.5.3
@@ -148,6 +161,8 @@ markdown-it-py==4.0.0
     # via rich
 marshmallow==3.26.2
     # via dataclasses-json
+matplotlib-inline==0.2.1
+    # via ipython
 mdurl==0.1.2
     # via markdown-it-py
 mmh3==5.2.0
@@ -209,8 +224,14 @@ packaging==26.0
     # via onnxruntime
 pandas==3.0.0
     # via math-atlas
+parso==0.8.6
+    # via jedi
+pexpect==4.9.0
+    # via ipython
 posthog==5.4.0
     # via chromadb
+prompt-toolkit==3.0.52
+    # via ipython
 propcache==0.4.1
     # via aiohttp
     # via yarl
@@ -218,6 +239,10 @@ protobuf==6.33.5
     # via googleapis-common-protos
     # via onnxruntime
     # via opentelemetry-proto
+ptyprocess==0.7.0
+    # via pexpect
+pure-eval==0.2.3
+    # via stack-data
 pybase64==1.4.3
     # via chromadb
 pydantic==2.12.5
@@ -234,6 +259,8 @@ pydantic-core==2.41.5
 pydantic-settings==2.12.0
     # via langchain-community
 pygments==2.19.2
+    # via ipython
+    # via ipython-pygments-lexers
     # via rich
 pypika==0.51.1
     # via chromadb
@@ -295,6 +322,8 @@ sniffio==1.3.1
 sqlalchemy==2.0.46
     # via langchain-classic
     # via langchain-community
+stack-data==0.6.3
+    # via ipython
 sympy==1.14.0
     # via onnxruntime
 tenacity==9.1.3
@@ -311,6 +340,9 @@ tqdm==4.67.3
     # via chromadb
     # via huggingface-hub
     # via openai
+traitlets==5.14.3
+    # via ipython
+    # via matplotlib-inline
 typer==0.21.1
     # via chromadb
 typer-slim==0.21.1
@@ -349,6 +381,8 @@ uvloop==0.22.1
     # via uvicorn
 watchfiles==1.1.1
     # via uvicorn
+wcwidth==0.6.0
+    # via prompt-toolkit
 websocket-client==1.9.0
     # via kubernetes
 websockets==16.0
