@@ -72,16 +72,19 @@ class MathAtlasLinker:
             model=self.linker_model,
             input=messages,  # type:ignore
             reasoning={"effort": "low"},
-            max_output_tokens=1000,
+            max_output_tokens=5000,
             text={"format": {"type": "json_schema", **schema}},  # type:ignore
         )
 
         content = response.output_text
-        matches = json.loads(content)["best_match"] if content else []
-        matches = matches if isinstance(matches, list) else [matches]
-        linked_ids = [metadatas[i]["uuid"] for i in matches]
-
-        return linked_ids
+        try:
+            matches = json.loads(content)["best_match"] if content else []
+            matches = matches if isinstance(matches, list) else [matches]
+            linked_ids = [metadatas[i]["uuid"] for i in matches]
+            return linked_ids
+        except Exception as e:
+            logger.error(e)
+            return []
 
 
 class MathAtlasRetriever:
