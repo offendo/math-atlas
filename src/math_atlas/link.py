@@ -1,7 +1,10 @@
 import asyncio
 import json
+import logging
 from pathlib import Path
 from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
 
 import chromadb
 import pandas as pd
@@ -131,77 +134,91 @@ async def _run_linker(
 ):
     semaphore = asyncio.Semaphore(20)
 
-    async def _helper(row: pd.Series):
+    async def _helper(idx: int, row: pd.Series):
         async with semaphore:
-            # Link object refs
-            object_tasks = []
-            for reference in row.object_references:
-                object_tasks.append(
-                    retriever.retrieve(
-                        query=f'Find the definition for "{reference}"',
-                        n_results=10,
-                        filter_type={"type": "definition"},
+            try:
+                # Link object refs
+                object_tasks = []
+                for reference in row.object_references:
+                    object_tasks.append(
+                        retriever.retrieve(
+                            query=f'Find the definition for "{reference}"',
+                            n_results=10,
+                            filter_type={"type": "definition"},
+                        )
                     )
-                )
 
-            entity_tasks = []
-            for reference in row.entity_references:
-                entity_tasks.append(
-                    retriever.retrieve(
-                        query=f'Retrieve the document which defines "{reference}"',
-                        n_results=10,
-                        filter_type={
-                            "$and": [
-                                {"file_id": row.file_id},
-                                {"block_end": {"$lte": int(row.block_end)}},
-                                {
-                                    "$or": [
-                                        {"type": "definition"},
-                                        {"type": "example"},
-                                        {"type": "theorem"},
-                                    ]
-                                },
-                            ]
-                        },
+                entity_tasks = []
+                for reference in row.entity_references:
+                    entity_tasks.append(
+                        retriever.retrieve(
+                            query=f'Retrieve the document which defines "{reference}"',
+                            n_results=10,
+                            filter_type={
+                                "$and": [
+                                    {"file_id": row.file_id},
+                                    {"block_end": {"$lte": int(row.block_end)}},
+                                    {
+                                        "$or": [
+                                            {"type": "definition"},
+                                            {"type": "example"},
+                                            {"type": "theorem"},
+                                        ]
+                                    },
+                                ]
+                            },
+                        )
                     )
-                )
-            object_candidates = await asyncio.gather(*object_tasks)
-            entity_candidates = await asyncio.gather(*entity_tasks)
+                object_candidates = await asyncio.gather(*object_tasks)
+                entity_candidates = await asyncio.gather(*entity_tasks)
 
-            # Run object linker
-            object_link_tasks = []
-            for reference, candidates in zip(row.object_references, object_candidates):
-                object_link_tasks.append(
-                    linker.link(
-                        reference,
-                        file_id=row.file_id,
-                        context=row.text,
-                        candidates=candidates,
-                        link_type="object",
+                # Run object linker
+                object_link_tasks = []
+                for reference, candidates in zip(row.object_references, object_candidates):
+                    object_link_tasks.append(
+                        linker.link(
+                            reference,
+                            file_id=row.file_id,
+                            context=row.text,
+                            candidates=candidates,
+                            link_type="object",
+                        )
                     )
-                )
-            entity_link_tasks = []
-            for reference, candidates in zip(row.entity_references, entity_candidates):
-                entity_link_tasks.append(
-                    linker.link(
-                        reference,
-                        file_id=row.file_id,
-                        context=row.text,
-                        candidates=candidates,
-                        link_type="entity",
+                entity_link_tasks = []
+                for reference, candidates in zip(row.entity_references, entity_candidates):
+                    entity_link_tasks.append(
+                        linker.link(
+                            reference,
+                            file_id=row.file_id,
+                            context=row.text,
+                            candidates=candidates,
+                            link_type="entity",
+                        )
                     )
+
+                object_links = await asyncio.gather(*object_link_tasks)
+                entity_links = await asyncio.gather(*entity_link_tasks)
+
+                return {
+                    "object_links": object_links,
+                    "entity_links": [link[0] if len(link) > 0 else None for link in entity_links],
+                }
+            except Exception as e:
+                logger.exception(
+                    "Linking failed for row idx=%s file_id=%s block_end=%s: %s",
+                    idx,
+                    getattr(row, "file_id", "?"),
+                    getattr(row, "block_end", "?"),
+                    e,
                 )
-
-            object_links = await asyncio.gather(*object_link_tasks)
-            entity_links = await asyncio.gather(*entity_link_tasks)
-
-            return {
-                "object_links": object_links,
-                "entity_links": [link[0] if len(link) > 0 else None for link in entity_links],
-            }
+                return {
+                    "object_links": None,
+                    "entity_links": None,
+                    "error": str(e),
+                }
 
     linked_results = await async_tqdm.gather(
-        *[_helper(row) for idx, row in df.iterrows()], desc="Linking"
+        *[_helper(idx, row) for idx, row in df.iterrows()], desc="Linking"
     )
     return linked_results
 
@@ -231,8 +248,9 @@ def link(
     )
 
     links = asyncio.run(_run_linker(retriever, linker, df))
-    df["object_links"] = [l["object_links"] for l in links]
-    df["entity_links"] = [l["entity_links"] for l in links]
+    df["object_links"] = [r["object_links"] for r in links]
+    df["entity_links"] = [r["entity_links"] for r in links]
+    df["linking_errors"] = [r.get("error") for r in links]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_json(output_path)
 
