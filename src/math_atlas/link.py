@@ -38,6 +38,35 @@ class MathAtlasLinker:
             parts.append(f"{i}. {doc}")
         return "\n".join(parts)
 
+    async def link_proof(
+        self,
+        reference: str,
+        file_id: str,
+        context: str,
+        candidates: dict[str, list[Any]],
+        link_type: LinkType = "object",
+    ):
+        pass
+    async def link_entity(
+        self,
+        reference: str,
+        file_id: str,
+        context: str,
+        candidates: dict[str, list[Any]],
+        link_type: LinkType = "object",
+    ):
+        pass
+
+    async def link_object(
+        self,
+        reference: str,
+        file_id: str,
+        context: str,
+        candidates: dict[str, list[Any]],
+        link_type: LinkType = "object",
+    ):
+        pass
+
     async def link(
         self,
         reference: str,
@@ -49,11 +78,15 @@ class MathAtlasLinker:
         documents = candidates["documents"][0]
         metadatas = candidates["metadatas"][0]
 
-        prompt = (
-            self.object_link_prompt
-            if link_type == "object"
-            else self.entity_link_prompt
-        )
+        match link_type:
+            case "object":
+                prompt = self.object_link_prompt
+                schema = self.object_link_schema
+
+            case "entity":
+                prompt = self.entity_link_prompt
+                schema = self.entity_link_schema
+
         messages = [
             {"role": "system", "content": prompt},
             {
@@ -66,11 +99,7 @@ class MathAtlasLinker:
                 ),
             },
         ]
-        schema = (
-            self.entity_link_schema
-            if link_type == "entity"
-            else self.object_link_schema
-        )
+
         response = await self.async_client.responses.create(
             model=self.linker_model,
             input=messages,  # type:ignore
