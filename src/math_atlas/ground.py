@@ -170,7 +170,7 @@ class MathlibGrounder:
         return asdict(candidates[best_index])
 
 
-@app.command
+@app.command("ground")
 def ground(
     model_url: str = typer.Option(..., help="url on which generator model is hosted"),
     model: str = typer.Option(..., help="generator model name"),
