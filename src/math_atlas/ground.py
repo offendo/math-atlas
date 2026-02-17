@@ -1,12 +1,21 @@
 """Ground entities to Mathlib 4"""
 
+import asyncio
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal
 
+import pandas as pd
 import requests
+import typer
 from openai import AsyncOpenAI
+from tqdm.asyncio import tqdm
+
+app = typer.Typer(
+    help="Ground definitions to Mathlib 4.", pretty_exceptions_show_locals=False
+)
 
 
 @dataclass
@@ -52,32 +61,37 @@ def format_lean_search_result(res: LeanSearchResult) -> str:
     )
 
 
-def search_mathlib(query: str) -> list[LeanSearchResult]:
-    # Delegate search to leansearch Retriever.
-    body = {"query": [query], "num_results": 10}
-    response = requests.post("http://localhost:2021/search", json=body)
-    assert response.ok, (response.status_code, response.content)
-    search_results = response.json()
-
-    # if for some reason we fail the search, return an empty list
-    if len(search_results) == 0 or len(search_results[0]) == 0:
-        return []
-
-    results = []
-    for r in search_results[0]:
-        del r["result"]["index"]
-        results.append(LeanSearchResult(distance=r["distance"], **r["result"]))
-    return results
-
-
 class MathlibGrounder:
-    def __init__(self, base_url: str, model: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str = "openai/gpt-oss-120b",
+        lean_search_url: str = "http://localhost:2021/search",
+    ) -> None:
         self.client = AsyncOpenAI(base_url=base_url)
         self.model = model
+        self.lean_search_url = lean_search_url
         with open("./prompts/grounding_prompt.txt") as f:
             self.grounding_instructions = f.read()
         with open("./prompts/augment_prompt.txt") as f:
             self.augment_instructions = f.read()
+
+    async def search_mathlib(self, query: str) -> list[LeanSearchResult]:
+        # Delegate search to leansearch Retriever.
+        body = {"query": [query], "num_results": 10}
+        response = requests.post(self.lean_search_url, json=body)
+        assert response.ok, (response.status_code, response.content)
+        search_results = response.json()
+
+        # if for some reason we fail the search, return an empty list
+        if len(search_results) == 0 or len(search_results[0]) == 0:
+            return []
+
+        results = []
+        for r in search_results[0]:
+            del r["result"]["index"]
+            results.append(LeanSearchResult(distance=r["distance"], **r["result"]))
+        return results
 
     async def complete(
         self,
@@ -153,4 +167,40 @@ class MathlibGrounder:
         if best_index is None:
             return None
 
-        return candidates[best_index]
+        return asdict(candidates[best_index])
+
+
+@app.command
+def ground(
+    model_url: str = typer.Option(..., help="url on which generator model is hosted"),
+    model: str = typer.Option(..., help="generator model name"),
+    lean_search_url: str = typer.Option(..., help="url on which LeanSearch is running"),
+    input_path: Path = typer.Option(..., help="Path to input json"),
+    output_path: Path = typer.Option(..., help="Path to output json"),
+):
+    df = pd.read_json(input_path)
+    output_path.parent.mkdir(exist_ok=True, parents=True)
+    grounder = MathlibGrounder(
+        base_url=model_url, model=model, lean_search_url=lean_search_url
+    )
+
+    async def async_helper() -> list[LeanSearchResult]:
+        tasks = []
+        definitions = df[df.type == "definition"]
+        for idx, row in definitions.iterrows():
+            row_tasks = []
+            for name in row.names:
+                row_tasks.append(grounder.ground_item_against_mathlib(name, row.text))
+            tasks.append(asyncio.gather(*row_tasks))
+
+        results = await tqdm.gather(*tasks)
+        return results
+
+    results = asyncio.run(async_helper())
+
+    df["mathlib_links"] = results
+    df.to_json(output_path)
+
+
+if __name__ == "__main__":
+    app()
