@@ -38,35 +38,6 @@ class MathAtlasLinker:
             parts.append(f"{i}. {doc}")
         return "\n".join(parts)
 
-    async def link_proof(
-        self,
-        reference: str,
-        file_id: str,
-        context: str,
-        candidates: dict[str, list[Any]],
-        link_type: LinkType = "object",
-    ):
-        pass
-    async def link_entity(
-        self,
-        reference: str,
-        file_id: str,
-        context: str,
-        candidates: dict[str, list[Any]],
-        link_type: LinkType = "object",
-    ):
-        pass
-
-    async def link_object(
-        self,
-        reference: str,
-        file_id: str,
-        context: str,
-        candidates: dict[str, list[Any]],
-        link_type: LinkType = "object",
-    ):
-        pass
-
     async def link(
         self,
         reference: str,
@@ -203,7 +174,9 @@ async def _run_linker(
 
                 # Run object linker
                 object_link_tasks = []
-                for reference, candidates in zip(row.object_references, object_candidates):
+                for reference, candidates in zip(
+                    row.object_references, object_candidates
+                ):
                     object_link_tasks.append(
                         linker.link(
                             reference,
@@ -214,7 +187,9 @@ async def _run_linker(
                         )
                     )
                 entity_link_tasks = []
-                for reference, candidates in zip(row.entity_references, entity_candidates):
+                for reference, candidates in zip(
+                    row.entity_references, entity_candidates
+                ):
                     entity_link_tasks.append(
                         linker.link(
                             reference,
@@ -230,7 +205,9 @@ async def _run_linker(
 
                 return {
                     "object_links": object_links,
-                    "entity_links": [link[0] if len(link) > 0 else None for link in entity_links],
+                    "entity_links": [
+                        link[0] if len(link) > 0 else None for link in entity_links
+                    ],
                 }
             except Exception as e:
                 logger.exception(

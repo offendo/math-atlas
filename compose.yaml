@@ -1,0 +1,25 @@
+services:
+  neo4j:
+    image: neo4j:latest
+    user: neo4j
+    volumes:
+      - ./neo4j/logs:/logs
+      - ./neo4j/config:/config
+      - ./neo4j/data:/data
+      - ./neo4j/plugins:/plugins
+      - ./neo4j/import:/var/lib/neo4j/import
+    environment:
+      - NEO4J_AUTH=neo4j/your_password 
+      # Install APOC plugin
+      - NEO4J_PLUGINS=["apoc"]
+      # Enable APOC file import/export
+      - apoc.import.file.enabled=true
+      - apoc.export.file.enabled=true
+      - dbms.security.allow_csv_import_from_file_urls=true
+      - dbms.directories.import=/var/lib/neo4j/import
+      - dbms.security.procedures.unrestricted=apoc.*
+    ports:
+      - "7474:7474" # Neo4j browser HTTP port
+      - "7687:7687" # Bolt port for drivers
+    restart: always
+

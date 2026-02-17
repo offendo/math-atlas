@@ -12,3 +12,6 @@ wheels/
 # chromadb
 chromadb/
 /.DS_Store
+
+# graph db stuff
+neo4j/

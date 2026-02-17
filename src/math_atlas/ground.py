@@ -76,7 +76,7 @@ class MathlibGrounder:
         with open("./prompts/augment_prompt.txt") as f:
             self.augment_instructions = f.read()
 
-    async def search_mathlib(self, query: str) -> list[LeanSearchResult]:
+    def search_mathlib(self, query: str) -> list[LeanSearchResult]:
         # Delegate search to leansearch Retriever.
         body = {"query": [query], "num_results": 10}
         response = requests.post(self.lean_search_url, json=body)
@@ -100,7 +100,7 @@ class MathlibGrounder:
         **kwargs,
     ) -> dict[str, Any]:
         if schema is not None:
-            kwargs['text'] = {"format": {"type": "json_schema", **schema}}
+            kwargs["text"] = {"format": {"type": "json_schema", **schema}}
         response = await self.client.responses.create(
             model=self.model,
             input=messages,
@@ -112,7 +112,7 @@ class MathlibGrounder:
             try:
                 return json.loads(content) if content else {}
             except Exception as e:
-                print('Error: ', e)
+                print("Error: ", e)
                 return {}
 
         return content
@@ -130,7 +130,7 @@ class MathlibGrounder:
     ) -> LeanSearchResult | None:
 
         query = await self.augment_query(name, text)
-        candidates = await self.search_mathlib(query)
+        candidates = self.search_mathlib(query)
 
         formatted_candidates = "\n\n".join(
             [f"{i}. {format_lean_search_result(c)}" for i, c in enumerate(candidates)]
@@ -160,7 +160,7 @@ class MathlibGrounder:
                 },
                 "required": ["reasoning", "best_match"],
                 "additionalProperties": False,
-            }
+            },
         }
 
         messages = [
@@ -173,40 +173,50 @@ class MathlibGrounder:
         best_match = None if best_index is None else asdict(candidates[best_index])
 
         return {
-            'name': name,
-            'augmented_query': query,
-            'grounded_reasoning': reasoning,
-            'grounded_match': best_match,
-            'retrieved_candidates': [c.name for c in candidates],
+            "name": name,
+            "augmented_query": query,
+            "grounded_reasoning": reasoning,
+            "grounded_match": best_match,
+            "retrieved_candidates": [c.name for c in candidates],
         }
 
 
 @app.command("ground")
 def ground(
-    model_url: str = typer.Option(..., help="url on which generator model is hosted"),
-    model: str = typer.Option(..., help="generator model name"),
-    lean_search_url: str = typer.Option(..., help="url on which LeanSearch is running"),
     input_path: Path = typer.Option(..., help="Path to input json"),
     output_path: Path = typer.Option(..., help="Path to output json"),
+    model_url: str = typer.Option(..., help="url on which generator model is hosted"),
+    model: str = typer.Option("openai/gpt-oss-120b", help="generator model name"),
+    lean_search_url: str = typer.Option(
+        default="http://localhost:2021/search",
+        help="url on which LeanSearch is running",
+    ),
 ):
+    if output_path.exists():
+        raise ValueError(
+            f'Error: output path already exists (--output_path="{output_path}")'
+        )
     df = pd.read_json(input_path)
+    definitions = df[df.type == "definition"]
     output_path.parent.mkdir(exist_ok=True, parents=True)
     grounder = MathlibGrounder(
         base_url=model_url, model=model, lean_search_url=lean_search_url
     )
-    semaphore = asyncio.Semaphore(10)
+    semaphore = asyncio.Semaphore(20)
 
-    async def _helper(name, text):
+    async def _helper(name, text, type):
+        if type != "definition":
+            return None
+
         async with semaphore:
             return await grounder.ground_item_against_mathlib(name, text)
 
     async def process() -> list[dict]:
         tasks = []
-        definitions = df[df.type == "definition"]
-        for idx, row in definitions.iterrows():
+        for idx, row in df.iterrows():
             row_tasks = []
             for name in row.names:
-                row_tasks.append(_helper(name, row.text))
+                row_tasks.append(_helper(name, row.text, row.type))
             tasks.append(asyncio.gather(*row_tasks))
 
         results = await tqdm.gather(*tasks)

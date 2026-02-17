@@ -114,10 +114,7 @@ def locate(
     results = []
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
-        futures = [
-            executor.submit(process_row, row, mmd_dir)
-            for row in rows
-        ]
+        futures = [executor.submit(process_row, row, mmd_dir) for row in rows]
 
         for future in tqdm(as_completed(futures), total=len(futures)):
             results.append(future.result())
@@ -134,4 +131,3 @@ def locate(
 
 if __name__ == "__main__":
     app()
-
