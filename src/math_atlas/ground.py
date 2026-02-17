@@ -7,8 +7,8 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal
 
-import pandas as pd
 import requests
+import pandas as pd
 import typer
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
@@ -100,19 +100,20 @@ class MathlibGrounder:
         **kwargs,
     ) -> dict[str, Any]:
         if schema is not None:
-            text = {"format": {"type": "json_schema", **schema}}
-        else:
-            text = None
+            kwargs['text'] = {"format": {"type": "json_schema", **schema}}
         response = await self.client.responses.create(
             model=self.model,
             input=messages,
             reasoning={"effort": "low"},
-            text=text,
             **kwargs,
         )
         content = response.output_text
         if schema:
-            return json.loads(content) if content else {}
+            try:
+                return json.loads(content) if content else {}
+            except Exception as e:
+                print('Error: ', e)
+                return {}
 
         return content
 
@@ -129,7 +130,7 @@ class MathlibGrounder:
     ) -> LeanSearchResult | None:
 
         query = await self.augment_query(name, text)
-        candidates = search_mathlib(query)
+        candidates = await self.search_mathlib(query)
 
         formatted_candidates = "\n\n".join(
             [f"{i}. {format_lean_search_result(c)}" for i, c in enumerate(candidates)]
@@ -145,17 +146,21 @@ class MathlibGrounder:
         """.strip()
         )
         schema = {
-            "properties": {
-                "reasoning": {"title": "Reasoning", "type": "string"},
-                "best_match": {
-                    "title": "Best Match",
-                    "type": "integer",
-                    "enum": list(range(len(candidates))),
+            "name": "grounding",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "reasoning": {"title": "Reasoning", "type": "string"},
+                    "best_match": {
+                        "title": "Best Match",
+                        "type": ["integer", "null"],
+                        "enum": list(range(len(candidates))) + [None],
+                    },
                 },
-            },
-            "required": ["reasoning", "best_match"],
-            "title": "GroundingResponse",
-            "type": "object",
+                "required": ["reasoning", "best_match"],
+                "additionalProperties": False,
+            }
         }
 
         messages = [
@@ -164,10 +169,16 @@ class MathlibGrounder:
         ]
         response = await self.complete(messages, schema=schema)
         best_index = response.get("best_match", None)
-        if best_index is None:
-            return None
+        reasoning = response.get("reasoning", None)
+        best_match = None if best_index is None else asdict(candidates[best_index])
 
-        return asdict(candidates[best_index])
+        return {
+            'name': name,
+            'augmented_query': query,
+            'grounded_reasoning': reasoning,
+            'grounded_match': best_match,
+            'retrieved_candidates': [c.name for c in candidates],
+        }
 
 
 @app.command("ground")
@@ -183,20 +194,25 @@ def ground(
     grounder = MathlibGrounder(
         base_url=model_url, model=model, lean_search_url=lean_search_url
     )
+    semaphore = asyncio.Semaphore(10)
 
-    async def async_helper() -> list[LeanSearchResult]:
+    async def _helper(name, text):
+        async with semaphore:
+            return await grounder.ground_item_against_mathlib(name, text)
+
+    async def process() -> list[dict]:
         tasks = []
         definitions = df[df.type == "definition"]
         for idx, row in definitions.iterrows():
             row_tasks = []
             for name in row.names:
-                row_tasks.append(grounder.ground_item_against_mathlib(name, row.text))
+                row_tasks.append(_helper(name, row.text))
             tasks.append(asyncio.gather(*row_tasks))
 
         results = await tqdm.gather(*tasks)
         return results
 
-    results = asyncio.run(async_helper())
+    results = asyncio.run(process())
 
     df["mathlib_links"] = results
     df.to_json(output_path)

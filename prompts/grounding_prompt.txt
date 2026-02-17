@@ -47,17 +47,12 @@ Step 2: Deduction from Usage Patterns
 Step 3: Final Decision
 --------------------------------------------------
 
-- Based on your analysis from Step 1 and Step 2, determine the single best name for the concept.
+- Based on your analysis from Step 1 and Step 2, determine the single best candidate for the concept.
 
 - Your answer MUST be a single, valid JSON object with the following keys:
 
   - `"best_match"`:
-    The full formal name of the canonical definition
-    (e.g., `"RingTheory.IsLocalRing"`).
-    If no confident match can be found through either direct matching or inference, the value must be `null`.
+    The **list index** of the candidate which precisely matches the search query. If no confident match can be found through either direct matching or inference, the value must be `null`.
 
   - `"reasoning"`:
-    A brief, one-sentence explanation of HOW you found the match. It must be exactly one of the following strings:
-    - `"Found a direct definition."`
-    - `"Inferred from usage in instances and theorems."`
-    - `"No confident match found."`
+    An explanation of why you chose a match, or didn't choose any match.
