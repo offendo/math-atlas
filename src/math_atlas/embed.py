@@ -99,9 +99,7 @@ def add_documents_to_chroma(
     if ids is None:
         ids = [doc.metadata.get("uuid", str(uuid4())) for doc in docs_list]
 
-    for batch in tqdm(
-        chunked(zip(docs_list, list(ids)), n=5000), total=int(len(docs_list) / 5000) + 1
-    ):
+    for batch in tqdm(chunked(zip(docs_list, list(ids)), n=5000), total=int(len(docs_list) / 5000) + 1):
         batch_docs, batch_ids = zip(*batch)
         chroma.add_documents(list(batch_docs), ids=batch_ids)
     return chroma

@@ -34,14 +34,12 @@ def format_prompt(block: str, system_prompt: str) -> list[dict[str, str]]:
     ]
 
 
-async def complete(
-    client: AsyncOpenAI, model: str, messages: list, schema: dict, **kwargs
-) -> dict[str, Any]:
+async def complete(client: AsyncOpenAI, model: str, messages: list, schema: dict, **kwargs) -> dict[str, Any]:
     response = await client.responses.create(
         model=model,
         input=messages,
         reasoning={"effort": "low"},
-        text={"format": {"type": "json_schema", **schema}},  # type:ignore
+        text={"format": {"type": "json_schema", **schema}},  # type: ignore
         **kwargs,
     )
     content = response.output_text
@@ -98,9 +96,7 @@ def split_file_into_token_chunks(
                     )
                     curr_group_start = running_idx
                 if p_len > max_tokens:
-                    final_triples.extend(
-                        recursive_split(running_idx, running_idx + p_len, seps[1:])
-                    )
+                    final_triples.extend(recursive_split(running_idx, running_idx + p_len, seps[1:]))
                     curr_group_start = running_idx + p_len + s_len
             running_idx += p_len + s_len
 
@@ -191,9 +187,7 @@ async def run_items_async(
             output = payload.get("items", [])
             records = []
             for item in output:
-                item.update(
-                    {"block_start": start, "block_end": end, "file_id": file_id}
-                )
+                item.update({"block_start": start, "block_end": end, "file_id": file_id})
                 if (offset := text.find(item["text"])) != -1:
                     item.update({"item_start": start + offset})
                 else:
@@ -201,10 +195,7 @@ async def run_items_async(
                 records.append(item)
             return records
 
-        tasks = [
-            asyncio.create_task(process_chunk(start, end, text))
-            for start, end, text in chunks
-        ]
+        tasks = [asyncio.create_task(process_chunk(start, end, text)) for start, end, text in chunks]
 
         for records in await tqdm.gather(*tasks, desc=file_id):
             all_records.extend(records)
@@ -290,11 +281,7 @@ async def run_references_async(
 
     if filter_references:
         df["filtered_references"] = df.apply(
-            lambda row: [
-                x
-                for x in row["references"]
-                if is_reference_valid(term=x["term"], text=row["text"])
-            ],
+            lambda row: [x for x in row["references"] if is_reference_valid(term=x["term"], text=row["text"])],
             axis=1,
         )
 

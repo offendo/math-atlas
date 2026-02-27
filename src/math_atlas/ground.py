@@ -7,15 +7,13 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any, Literal
 
-import requests
 import pandas as pd
+import requests
 import typer
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 
-app = typer.Typer(
-    help="Ground definitions to Mathlib 4.", pretty_exceptions_show_locals=False
-)
+app = typer.Typer(help="Ground definitions to Mathlib 4.", pretty_exceptions_show_locals=False)
 
 
 @dataclass
@@ -51,14 +49,12 @@ def format_lean_search_result(res: LeanSearchResult) -> str:
     formal_name = ".".join(res.name)
     name = f"{module_name}.{formal_name}"
 
-    return dedent(
-        f"""
+    return dedent(f"""
         Distance: {res.distance}
         {res.kind} {name} {res.signature}
         Elaborated type: {res.type}
         {res.informal_name} : {res.informal_description}
-        """.strip()
-    )
+        """.strip())
 
 
 class MathlibGrounder:
@@ -125,26 +121,20 @@ class MathlibGrounder:
         ]
         return await self.complete(messages)
 
-    async def ground_item_against_mathlib(
-        self, name: str, text: str
-    ) -> LeanSearchResult | None:
+    async def ground_item_against_mathlib(self, name: str, text: str) -> LeanSearchResult | None:
 
         query = await self.augment_query(name, text)
         candidates = self.search_mathlib(query)
 
-        formatted_candidates = "\n\n".join(
-            [f"{i}. {format_lean_search_result(c)}" for i, c in enumerate(candidates)]
-        )
+        formatted_candidates = "\n\n".join([f"{i}. {format_lean_search_result(c)}" for i, c in enumerate(candidates)])
 
-        prompt = dedent(
-            f"""
+        prompt = dedent(f"""
         **Concept to find:**
         {name} : {text}
 
         **Search Candidates from `mathlib`:**
         {formatted_candidates}
-        """.strip()
-        )
+        """.strip())
         schema = {
             "name": "grounding",
             "strict": True,
@@ -193,15 +183,11 @@ def ground(
     ),
 ):
     if output_path.exists():
-        raise ValueError(
-            f'Error: output path already exists (--output_path="{output_path}")'
-        )
+        raise ValueError(f'Error: output path already exists (--output_path="{output_path}")')
     df = pd.read_json(input_path)
     definitions = df[df.type == "definition"]
     output_path.parent.mkdir(exist_ok=True, parents=True)
-    grounder = MathlibGrounder(
-        base_url=model_url, model=model, lean_search_url=lean_search_url
-    )
+    grounder = MathlibGrounder(base_url=model_url, model=model, lean_search_url=lean_search_url)
     semaphore = asyncio.Semaphore(20)
 
     async def _helper(name, text, type):

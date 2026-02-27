@@ -6,12 +6,13 @@ from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
-import chromadb
 import pandas as pd
 import typer
 from langchain_localai import LocalAIEmbeddings
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm as async_tqdm
+
+import chromadb
 
 LinkType = Literal["object", "entity"]
 
@@ -29,9 +30,7 @@ class MathAtlasLinker:
         with open("schemas/entity_link_schema.json", "r") as f:
             self.entity_link_schema = json.load(f)
 
-    def format_link_prompt(
-        self, reference: str, file_id: str, context: str, search_results: list[str]
-    ):
+    def format_link_prompt(self, reference: str, file_id: str, context: str, search_results: list[str]):
         header = f"""**Search term:** {reference}\n**File ID:** {file_id}\n**Context:**\n{context}"""
         parts = [header]
         for i, doc in enumerate(search_results):
@@ -73,10 +72,10 @@ class MathAtlasLinker:
 
         response = await self.async_client.responses.create(
             model=self.linker_model,
-            input=messages,  # type:ignore
+            input=messages,  # type: ignore
             reasoning={"effort": "low"},
             max_output_tokens=5000,
-            text={"format": {"type": "json_schema", **schema}},  # type:ignore
+            text={"format": {"type": "json_schema", **schema}},  # type: ignore
         )
 
         content = response.output_text
@@ -98,9 +97,7 @@ class MathAtlasRetriever:
         embedding_model: str,
         collection_name: str = "mathatlas",
     ):
-        self.embeddings = LocalAIEmbeddings(
-            openai_api_base=embedding_url, model=embedding_model
-        )
+        self.embeddings = LocalAIEmbeddings(openai_api_base=embedding_url, model=embedding_model)
         self.chroma_client = chromadb.PersistentClient(str(chromadb_path))
         self.chroma = self.chroma_client.get_collection(collection_name)
 
@@ -112,9 +109,9 @@ class MathAtlasRetriever:
     ) -> chromadb.QueryResult:
         embeddings = await self.embeddings.aembed_query(query)
         results = self.chroma.query(
-            query_embeddings=embeddings,  # type:ignore
+            query_embeddings=embeddings,  # type: ignore
             n_results=n_results,
-            where=filter_type,  # type:ignore
+            where=filter_type,  # type: ignore
             include=["documents", "metadatas", "distances"],
         )
         return results
@@ -174,9 +171,7 @@ async def _run_linker(
 
                 # Run object linker
                 object_link_tasks = []
-                for reference, candidates in zip(
-                    row.object_references, object_candidates
-                ):
+                for reference, candidates in zip(row.object_references, object_candidates):
                     object_link_tasks.append(
                         linker.link(
                             reference,
@@ -187,9 +182,7 @@ async def _run_linker(
                         )
                     )
                 entity_link_tasks = []
-                for reference, candidates in zip(
-                    row.entity_references, entity_candidates
-                ):
+                for reference, candidates in zip(row.entity_references, entity_candidates):
                     entity_link_tasks.append(
                         linker.link(
                             reference,
@@ -205,9 +198,7 @@ async def _run_linker(
 
                 return {
                     "object_links": object_links,
-                    "entity_links": [
-                        link[0] if len(link) > 0 else None for link in entity_links
-                    ],
+                    "entity_links": [link[0] if len(link) > 0 else None for link in entity_links],
                 }
             except Exception as e:
                 logger.exception(
@@ -223,9 +214,7 @@ async def _run_linker(
                     "error": str(e),
                 }
 
-    linked_results = await async_tqdm.gather(
-        *[_helper(idx, row) for idx, row in df.iterrows()], desc="Linking"
-    )
+    linked_results = await async_tqdm.gather(*[_helper(idx, row) for idx, row in df.iterrows()], desc="Linking")
     return linked_results
 
 
