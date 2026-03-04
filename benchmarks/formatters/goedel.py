@@ -27,8 +27,8 @@ def parse_output(text):
     """Extracts the last Lean 4 code block from the model's output."""
     try:
         matches = re.findall(r"```lean4\n(.*?)\n```", text, re.DOTALL)
-        code = matches[-1].strip() if matches else "No Lean 4 code block found."
-        thinking = re.match(r"<think>(.*?)</think>", out.output_text, flags=re.DOTALL)
+        code = matches[-1].strip() if matches else text
+        thinking = re.match(r"<think>(.*?)</think>", text, flags=re.DOTALL)
         return thinking, code
     except Exception:
-        return None, "Error during code extraction."
+        return None, text

@@ -11,6 +11,7 @@ import typer
 from datasets import load_dataset
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
+from transformers import AutoTokenizer
 from dataclasses import dataclass, asdict
 
 from benchmarks.formatters import get_formatter, get_output_parser
@@ -20,7 +21,6 @@ from benchmarks.formatters import get_formatter, get_output_parser
 class Output:
     thinking: str
     text: str
-
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = logging.getLogger("run_benchmark")
@@ -52,14 +52,14 @@ def generate(
     tensor_parallel_size: int = 1,
     dtype: str | None = None,
 ) -> list[Output]:
+    parse_output = get_output_parser(model)
+    tokenizer = AutoTokenizer.from_pretrained(model)
     if model_url is None:
         from vllm import LLM, SamplingParams
 
         llm = LLM(
             model=model,
             tensor_parallel_size=tensor_parallel_size,
-            trust_remote_code=True,
-            dtype=dtype,
         )
         logger.info("Loaded model `%s`", model)
 
@@ -69,12 +69,20 @@ def generate(
             top_p=top_p,
             seed=seed,
         )
-        llm_outputs = llm.chat(prompts, sampling_params, use_tqdm=False)
+        llm_outputs = llm.chat(prompts, sampling_params, use_tqdm=True)
         outputs = []
-        for out in raw_outputs:
-            full = tokenizer.decode(out[0].outputs[0].token_ids)
-            thinking, code = parse_output(full)
-            outputs.append(Output(thinking=thinking, text=code))
+        for out in llm_outputs:
+            if len(out.outputs) > 1:
+                thinking = out.outputs[0].content[0].text
+                code = out.outputs[1].content[0].text
+                outputs.append(Output(thinking=thinking, text=code))
+            else:
+                full = tokenizer.decode(out.outputs[0].token_ids)
+                thinking, code = parse_output(full)
+                if thinking is None:
+                    outputs.append(Output(thinking=None, text=out.outputs[0].text))
+                else:
+                    outputs.append(Output(thinking=thinking, text=code))
     else:
         client = AsyncOpenAI(base_url=model_url)
         semaphore = asyncio.Semaphore(30)
