@@ -180,8 +180,8 @@ def run(
     verified_rate = sum([out["verified"] for out in compiler_output]) / len(compiler_output)
     aligned_rate = sum([out["aligned"] for out in alignment_output]) / len(alignment_output)
 
-    print(f"Verified: {verified_rate:.2f}%")
-    print(f"Aligned: {aligned_rate:.2f}%")
+    print(f"Verified: {100 * verified_rate:.2f}%")
+    print(f"Aligned: {100 * aligned_rate:.2f}%")
 
     df = pd.DataFrame(
         {

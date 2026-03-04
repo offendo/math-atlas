@@ -1,0 +1,3 @@
+[submodule "proofflow"]
+	path = proofflow
+	url = https://github.com/Huawei-AI4Math/ProofFlow.git
