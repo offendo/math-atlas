@@ -8,31 +8,24 @@ Analyze the informal definition carefully to ensure that:
 - no additional properties or assumptions are introduced at the top level
 - the definition is type-correct and conservative
 
-STRICT OUTPUT RULES
+### STRICT OUTPUT RULES
 1. Output **only Lean code**. No explanations, commentary, or markdown.
 2. The code must compile with Lean 4 + Mathlib.
 
-DEFINITION FORMALIZATION GUIDELINES
+### DEFINITION FORMALIZATION GUIDELINES
 1. The **object being defined** must faithfully reflect the informal definition.
    - Preserve its structure, fields, and properties exactly as stated.
    - Do not replace it with an existing Mathlib structure or canonical abstraction.
-
 2. **Supporting objects and typeclasses** may and should be drawn from Mathlib.
    - For example, if a definition involves a vector space, you may use `Module` over a field.
    - Use Mathlib notation and definitions freely for all supporting objects.
-
 3. Explicitly reflect the informal structure.
    - If the text defines “a set with a binary operation and axioms,” formalize this with fields and propositions.
-
 4. Do not assume additional properties or structures not mentioned in the informal text.
    - Avoid strengthening or bundling axioms into inherited structures at the top level.
-
 5. If multiple formalizations are possible, choose the **weakest** one that typechecks.
-
 6. Use explicit type annotations whenever needed to avoid ambiguity.
-
 7. Only introduce auxiliary definitions, coercions, or instances if they are mathematically required by the informal text.
-
 8. Correctness with respect to the informal definition takes priority over conforming to Mathlib’s canonical abstractions.
 
 Below are examples showing the exact **style, level of detail, and interpretation** expected in the output.

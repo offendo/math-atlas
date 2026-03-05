@@ -4,6 +4,7 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Any
+import json
 
 import blv
 import pandas as pd
@@ -12,15 +13,9 @@ from datasets import load_dataset
 from openai import AsyncOpenAI
 from tqdm.asyncio import tqdm
 from transformers import AutoTokenizer
-from dataclasses import dataclass, asdict
 
-from benchmarks.formatters import get_formatter, get_output_parser
-
-
-@dataclass
-class Output:
-    thinking: str
-    text: str
+from benchmarks.formatters import get_formatter
+from benchmarks.formatters.base import Output
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
 logger = logging.getLogger("run_benchmark")
@@ -28,12 +23,7 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s - %(message)s
 logger.setLevel(logging.INFO)
 
 
-def format_fn(batch, fn) -> dict[str, list[str]]:
-    prompts = [fn(text, names) for text, names in zip(batch["text"], batch["names"])]
-    return {"prompt": prompts}
-
-
-def score_alignment(outputs: list[str], item_type: str) -> list[dict[str, Any]]:
+def score_alignment(informals: list[str], formals: list[str]) -> list[dict[str, Any]]:
     """Score alignment for generated outputs.
 
     TODO: Implement and return a list of dicts with keys: aligned (bool), reason (str).
@@ -44,6 +34,7 @@ def score_alignment(outputs: list[str], item_type: str) -> list[dict[str, Any]]:
 def generate(
     prompts: list[list[dict[str, str]]],
     model: str,
+    formatter,
     max_tokens: int,
     temperature: float,
     top_p: float,
@@ -52,10 +43,9 @@ def generate(
     tensor_parallel_size: int = 1,
     dtype: str | None = None,
 ) -> list[Output]:
-    parse_output = get_output_parser(model)
     tokenizer = AutoTokenizer.from_pretrained(model)
     if model_url is None:
-        from vllm import LLM, SamplingParams
+        from vllm import LLM, SamplingParams  # type:ignore
 
         llm = LLM(
             model=model,
@@ -78,11 +68,8 @@ def generate(
                 outputs.append(Output(thinking=thinking, text=code))
             else:
                 full = tokenizer.decode(out.outputs[0].token_ids)
-                thinking, code = parse_output(full)
-                if thinking is None:
-                    outputs.append(Output(thinking=None, text=out.outputs[0].text))
-                else:
-                    outputs.append(Output(thinking=thinking, text=code))
+                output = formatter.parse_output(full)
+                outputs.append(output)
     else:
         client = AsyncOpenAI(base_url=model_url)
         semaphore = asyncio.Semaphore(30)
@@ -109,22 +96,22 @@ def generate(
             results = await tqdm.gather(*tasks)
             return results
 
-        raw_outputs: list[Response] = asyncio.run(_run(prompts))
+        raw_outputs: list = asyncio.run(_run(prompts))
         outputs = []
         for out in raw_outputs:
-            thinking, code = parse_output(out.output_text)
-            outputs.append(Output(thinking=thinking, text=code))
+            output = formatter.parse_output(out.output_text)
+            outputs.append(output)
 
     return outputs
 
 
 @app.command()
 def run(
+    item_type: list[str] = typer.Argument(..., help="Entity type(s) to autoformalize; repeatable or 'all'."),
     model: str = typer.Option(..., help="Model name or path for vLLM."),
     model_url: str | None = typer.Option(default=None, help="vLLM url"),
     dataset: str = typer.Option(..., exists=False, dir_okay=False, help="Input huggingface dataset name/path."),
     output: Path = typer.Option(..., dir_okay=False, help="Output JSON path."),
-    item_type: str = typer.Option("theorem", help="Entity type to autoformalize. "),
     max_tokens: int = typer.Option(4096, help="Max tokens to generate."),
     temperature: float = typer.Option(0.0, help="Sampling temperature."),
     top_p: float = typer.Option(1.0, help="Top-p sampling."),
@@ -137,32 +124,28 @@ def run(
 
     ds = load_dataset(dataset, split="train")
     logger.info("Loaded dataset `%s`", dataset)
-    if item_type != "all":
+    # handle multiple requested item types
+    if "all" not in item_type:
         original_len = len(ds)
-        ds = ds.filter(lambda ex: ex["type"] == item_type)
+        ds = ds.filter(lambda ex, types=item_type: ex["type"] in types)
         logger.info("Filtered dataset to %s (%i -> %i items)", item_type, original_len, len(ds))
 
     model_formatter = get_formatter(model)
-    ds = ds.map(lambda batch: format_fn(batch, model_formatter), batched=True)
-    prompts = ds["prompt"]
+    ds = ds.map(lambda batch: model_formatter.format_batch(batch), batched=True)
 
-    if precomputed_generations:
-        df = pd.read_json(precomputed_generations)
-        raw_outputs = list(df["raw_output"])
-        model_outputs = list(df["parsed_output"])
-    else:
-        raw_outputs = generate(
-            prompts,
-            model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            seed=seed,
-            model_url=model_url,
-            tensor_parallel_size=tensor_parallel_size,
-            dtype=dtype,
-        )
-        model_outputs = [out.text for out in raw_outputs]
+    raw_outputs = generate(
+        ds["prompt"],
+        model,
+        model_formatter,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        seed=seed,
+        model_url=model_url,
+        tensor_parallel_size=tensor_parallel_size,
+        dtype=dtype,
+    )
+    model_outputs = [out.text for out in raw_outputs]
     logger.info("Finished generation!")
 
     # Save generations in case verification goes wrong
@@ -177,13 +160,13 @@ def run(
     output.parent.mkdir(parents=True, exist_ok=True)
     df.to_json(output)
 
-    compiler_output = blv.verify_theorems(
+    compiler_output = blv.verify(
         model_outputs,
         force_header=("import Mathlib", "import Aesop"),
     )
     logger.info("Finished compile rate check.")
     try:
-        alignment_output = score_alignment(model_outputs, item_type)
+        alignment_output = score_alignment(ds["text"], model_outputs)
         logger.info("Finished alignment rate check.")
     except Exception:
         logger.warning("Alignment check not implemented. Skipping for now.")
@@ -206,7 +189,15 @@ def run(
         }
     )
     df.to_json(output)
-    logger.info(f"Saved results to {output}")
+    metric_path = output.with_suffix(".metrics.json")
+    with open(metric_path, "w") as f:
+        metrics = {
+            "verified_rate": verified_rate,
+            "aligned_rate": aligned_rate,
+        }
+        json.dump(metrics, f, indent=2)
+    logger.info(f"Saved results to {output} and metrics to {metric_path}")
+
 
 
 if __name__ == "__main__":

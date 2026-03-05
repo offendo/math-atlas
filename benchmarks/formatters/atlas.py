@@ -1,4 +1,5 @@
 from transformers import AutoTokenizer
+from .base import BaseFormatter, ItemType, Output
 
 MODEL_NAME = "XiaoyangLiu-sjtu/ATLAS_Translator_D"
 TOKENIZER = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
@@ -18,15 +19,16 @@ Remember, the goal is to create a syntactically correct and semantically accurat
 Now please begin by carefully reading the natural language statement provided, and then proceed with your translation into Lean4."""
 
 
-def format_example(informal, names: list[str] = None):
-    messages = [
-        {"role": "system", "content": "You are an expert in mathematics and Lean 4."},
-        {"role": "user", "content": INSTRUCTION + "\n" + informal},
-    ]
+class ATLASFormatter(BaseFormatter):
+    def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
+        assert item_type in {ItemType.THEOREM, ItemType.EXAMPLE, ItemType.EXERCISE}, "ATLASFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
+        messages = [
+            {"role": "system", "content": "You are an expert in mathematics and Lean 4."},
+            {"role": "user", "content": INSTRUCTION + "\n" + informal},
+        ]
 
-    # return TOKENIZER.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
-    return messages
+        # return TOKENIZER.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
+        return messages
 
-
-def parse_output(text):
-    return None, text
+    def parse_output(self, output: str) -> Output:
+        return Output(thinking=None, text=output)

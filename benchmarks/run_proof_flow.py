@@ -12,7 +12,6 @@ from tqdm import tqdm
 
 from proofflow import ProofFlow, LLMManager, LeanServer
 
-
 app = typer.Typer(pretty_exceptions_show_locals=False)
 
 logging.basicConfig(
@@ -28,12 +27,14 @@ def load_proofs(dataset: str) -> list[str]:
     Load informal proofs with theorems from a HuggingFace dataset.
     """
     ds = load_dataset(dataset, split="train")
+
     def _format(ex):
-        proof = ex['text']
-        thm = ex['text']
-        return {'example': f"Theorem: {thm}\nProof: {proof}"}
+        proof = ex["text"]
+        thm = ex["text"]
+        return {"example": f"Theorem: {thm}\nProof: {proof}"}
+
     ds = ds.map(_format)
-    return list(ds['example'])
+    return list(ds["example"])
 
 
 @app.command()
@@ -46,7 +47,9 @@ def run(
         None,
         help="Output JSON file. Defaults to '<model>.proof.json'.",
     ),
-    graph_url: str = typer.Option("http://localhost:8001/v1", help="vLLM url which hosts graph/formalize/solver models."),
+    graph_url: str = typer.Option(
+        "http://localhost:8001/v1", help="vLLM url which hosts graph/formalize/solver models."
+    ),
     solver_url: str = typer.Option(None, help="vLLM url which hosts graph/formalize/solver models."),
     formalize_url: str = typer.Option(None, help="vLLM url which hosts graph/formalize/solver models."),
     prompt_dir: Path = typer.Option(".", help="Path to directory containing prompts"),
@@ -104,7 +107,7 @@ def run(
         graph_model_manager=graph_model,
         formalize_model_manager=formalize_model,
         solver_model_manager=solver_model,
-        verbose=True
+        verbose=True,
     )
 
     results = []

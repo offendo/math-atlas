@@ -1,17 +1,8 @@
-import re
-from transformers import AutoTokenizer
+from .few_shot import FewShotFormatter
 
+# simple subclass for clarity; the generic few-shot behavior is provided
+# by `FewShotFormatter`, so this file exists purely for backwards
+# compatibility if something explicitly imports `Qwen35Formatter`.
 
-def format_example(informal, names: list[str] = None):
-    with open("benchmarks/prompts/few_shot.txt", "r") as f:
-        template = f.read()
-    messages = [
-        {"role": "system", "content": "You are an expert at Lean 4 and Mathematics."},
-        {"role": "user", "content": template.format(text=informal)},
-    ]
-
-    return messages
-
-
-def parse_output(text):
-    return None, text
+class Qwen35Formatter(FewShotFormatter):
+    pass
