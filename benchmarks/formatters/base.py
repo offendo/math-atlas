@@ -27,7 +27,7 @@ class BaseFormatter:
 
     def format_batch(self, batch) -> dict[str, list[list[dict[str, str]]]]:
         prompts = [
-            self.format(text, item_type, names)
+            self.format(text, ItemType[item_type.upper()], names)
             for text, item_type, names in zip(batch["text"], batch["type"], batch["names"])
         ]
         return {"prompt": prompts}

@@ -11,20 +11,25 @@ export QWEN35_9="Qwen/Qwen3.5-9B"
 export QWEN35_4="Qwen/Qwen3.5-4B"
 export HERALD="FrenzyMath/Herald_translator"
 
-export SPLIT="definition"
+export SPLITS="theorem exercise example"
+# export SPLITS="definition"
+export SPLIT_NAME="statements"
+# export SPLIT_NAME="definitions"
 
-for MODEL in $GOEDEL32 $GOEDEL8 $GPT120 $GPT20 $ATLAS_Q $HERALD $KIMINA7 ; do
-	echo "Running $SPLIT with model $MODEL"
-	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT}.json" | sed 's/\//./g');
+export CUDA_VISIBLE_DEVICES=1
+
+for MODEL in $KIMINA7 $GOEDEL32 $GOEDEL8 $ATLAS_D $GPT120 $GPT20 $QWEN35_4 $QWEN35_9 $QWEN35_27; do
+	echo "Running $SPLITS with model $MODEL"
+	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.json" | sed 's/\//./g');
 	python -m benchmarks.run_benchmark \
+		 $SPLITS \
 		--model=$MODEL\
 		--dataset="offendo/math-atlas" \
 		--output $OUTPUT_PATH \
-		--max-tokens=10000 \
+		--max-tokens=8000 \
 		--temperature=0.2 \
 		--top-p=0.95 \
-		--seed=1234 \
-		--item-type=$SPLIT;
+		--seed=1234;
 	echo "...done!"
 
 done

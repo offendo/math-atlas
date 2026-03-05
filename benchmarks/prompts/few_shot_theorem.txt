@@ -33,12 +33,12 @@ Each example has the format:
 <Lean code>
 
 ### Example 1
-**Informal:**: _Let \(A\) be a Borel subset of \({\mathbb{R}}^{n}\) with positive Lebesgue measure and let \(\lambda_{A}\) be the subrepresentation of the left regular representation \(\lambda\) obtained by restricting \(\lambda\) to \({\cal F}^{-1}(\chi_{A}L^{2}({\mathbb{R}}^{n}))\). Then a function \(f\in{\cal F}^{-1}(\chi_{A}L^{2}({\mathbb{R}}^{n}))\) is a cyclic vector for \(\lambda_{A}\) if and only if \(\hat{f}(y)\neq 0\) a.e. \(y\in A\)._
+**Informal:**: _Let \(A\) be a Borel subset of \({{\mathbb{{R}}}}^{{n}}\) with positive Lebesgue measure and let \(\lambda_{{A}}\) be the subrepresentation of the left regular representation \(\lambda\) obtained by restricting \(\lambda\) to \({{\cal F}}^{{-1}}(\chi_{{A}}L^{{2}}({{\mathbb{{R}}}}^{{n}}))\). Then a function \(f\in{{\cal F}}^{{-1}}(\chi_{{A}}L^{{2}}({{\mathbb{{R}}}}^{{n}}))\) is a cyclic vector for \(\lambda_{{A}}\) if and only if \(\hat{{f}}(y)\neq 0\) a.e. \(y\in A\)._
 **Formal:** 
 open Topology Filter Real Complex TopologicalSpace Finset
 open scoped BigOperators
 
-theorem ex_thm {n : ℕ} (A : Set (EuclideanSpace ℝ (Fin n)))
+theorem ex_thm {{n : ℕ}} (A : Set (EuclideanSpace ℝ (Fin n)))
   (hA : A ≠ ∅) (hA1 : MeasureTheory.volume A > 0) :
   ∀ f : EuclideanSpace ℝ (Fin n) → ℝ,
     (∀ y ∈ A, f y ≠ 0) ↔
@@ -67,12 +67,12 @@ theorem ex_thm
   (∀ p q r, d p r ≤ d p q + d q r) := by sorry
 
 ### Example 3
-**Informal:**: **Lemma 5.4.7.**_There exists \(V\in N\) such that \(\chi_{V}(g)\neq 0\)._
+**Informal:**: **Lemma 5.4.7.**_There exists \(V\in N\) such that \(\chi_{{V}}(g)\neq 0\)._
 **Formal:**
 open Fintype Set Real Ideal Polynomial
 open scoped BigOperators
 
-theorem ex_thm {g : ℕ → ℕ} (hg : g = λ n => n ^ 2 + 1) :
+theorem ex_thm {{g : ℕ → ℕ}} (hg : g = λ n => n ^ 2 + 1) :
   ∃ V : ℕ, (g V : ℤ) ≠ 0 := by sorry
 
 ### Example 4
@@ -81,7 +81,7 @@ theorem ex_thm {g : ℕ → ℕ} (hg : g = λ n => n ^ 2 + 1) :
 open Fintype Complex Polynomial LinearMap FiniteDimensional Module Module.End
 open scoped BigOperators
 
-theorem ex_thm {G V : Type*} [Group G] [NormedAddCommGroup V]
+theorem ex_thm {{G V : Type*}} [Group G] [NormedAddCommGroup V]
   [InnerProductSpace ℂ V] [FiniteDimensional ℂ V] (φ : G →* End ℂ V) :
   ∃ (inner : V →ₗ[ℂ] V → ℂ), (∀ v w, inner v w = inner w v) ∧
   (∀ v, inner v v = 1) ∧ (∀ g v, φ g v = v) := by sorry

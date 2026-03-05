@@ -12,11 +12,12 @@ class Models(Enum):
     GOEDEL = auto()
     ATLAS = auto()
     KIMINA = auto()
-    GPTOSS = auto()
+    FEW_SHOT = auto()
     REFORM = auto()
 
     @classmethod
     def from_str(cls, model_name):
+        model_name = model_name.lower()
         if "herald" in model_name:
             return cls.HERALD
         elif "goedel" in model_name:
@@ -25,15 +26,15 @@ class Models(Enum):
             return cls.ATLAS
         elif "kimina" in model_name:
             return cls.KIMINA
-        elif "gpt" in model_name:
-            return cls.GPTOSS
-        elif "qwen" in model_name:
-            return cls.GPTOSS
-        elif "llama" in model_name or "l\"lama" in model_name:
-            # treat various llama-style names the same way
-            return cls.GPTOSS
         elif "reform" in model_name:
             return cls.REFORM
+        elif "gpt" in model_name:
+            return cls.FEW_SHOT
+        elif "qwen" in model_name:
+            return cls.FEW_SHOT
+        elif "llama" in model_name or "l\"lama" in model_name:
+            # treat various llama-style names the same way
+            return cls.FEW_SHOT
         else:
             raise ValueError(f"unsupported model: {model_name}")
 
@@ -45,7 +46,7 @@ def get_formatter(model_name):
         Models.GOEDEL: GoedelFormatter,
         Models.ATLAS: ATLASFormatter,
         Models.KIMINA: KiminaFormatter,
-        Models.GPTOSS: FewShotFormatter,
+        Models.FEW_SHOT: FewShotFormatter,
         Models.REFORM: ReformFormatter,
     }
     if model in formatter_dict:
