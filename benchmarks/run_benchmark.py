@@ -165,6 +165,18 @@ def run(
         model_outputs = [out.text for out in raw_outputs]
     logger.info("Finished generation!")
 
+    # Save generations in case verification goes wrong
+    df = pd.DataFrame(
+        {
+            "uuid": ds["uuid"],
+            "file_id": ds["file_id"],
+            "raw_output": raw_outputs,
+            "parsed_output": model_outputs,
+        }
+    )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    df.to_json(output)
+
     compiler_output = blv.verify_theorems(
         model_outputs,
         force_header=("import Mathlib", "import Aesop"),
@@ -193,8 +205,6 @@ def run(
             "alignment_output": alignment_output,
         }
     )
-
-    output.parent.mkdir(parents=True, exist_ok=True)
     df.to_json(output)
     logger.info(f"Saved results to {output}")
 

@@ -39,10 +39,10 @@ dev = [
 line-length = 120
 
 [tool.uv.sources]
-blv = { git = "https://github.com/offendo/blv.git", rev = "0.2.5" }
+blv = { git = "https://github.com/offendo/blv.git" }
 proofflow = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "benchmarks/ProofFlow",
+    "proofflow",
 ]

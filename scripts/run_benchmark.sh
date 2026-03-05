@@ -11,7 +11,7 @@ export QWEN35_9="Qwen/Qwen3.5-9B"
 export QWEN35_4="Qwen/Qwen3.5-4B"
 export HERALD="FrenzyMath/Herald_translator"
 
-export SPLIT="theorem"
+export SPLIT="definition"
 
 for MODEL in $GOEDEL32 $GOEDEL8 $GPT120 $GPT20 $ATLAS_Q $HERALD $KIMINA7 ; do
 	echo "Running $SPLIT with model $MODEL"
