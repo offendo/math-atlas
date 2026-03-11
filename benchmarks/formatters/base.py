@@ -19,6 +19,9 @@ class Output:
 
 
 class BaseFormatter:
+    def __init__(self, *args, **kwargs):
+        pass
+
     def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
         raise NotImplementedError()
 

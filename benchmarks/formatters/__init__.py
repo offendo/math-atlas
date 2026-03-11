@@ -50,5 +50,5 @@ def get_formatter(model_name):
         Models.REFORM: ReformFormatter,
     }
     if model in formatter_dict:
-        return formatter_dict[model]()
+        return formatter_dict[model](model=model_name)
     raise NotImplementedError(f"no support for {model_name}")

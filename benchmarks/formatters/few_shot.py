@@ -13,8 +13,16 @@ class FewShotFormatter(BaseFormatter):
     appropriate file based on the provided `ItemType`.
     """
 
-    def __init__(self, prompt_dir: str | None = None):
+    def __init__(self,  model: str, prompt_dir: str | None = None):
         self.prompt_dir = prompt_dir or PROMPT_DIR
+        self.model = model
+
+        if 'qwen' in self.model.lower():
+            self.parse_output = self.parse_output_qwen
+        elif 'gpt' in self.model.lower():
+            self.parse_output = self.parse_output_gpt
+        else:
+            raise NotImplementedError(f"Output parser for model `{model}` not implemented yet.")
 
     def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
         # choose template file according to the item type
@@ -36,9 +44,9 @@ class FewShotFormatter(BaseFormatter):
         ]
         return messages
 
-    def parse_output(self, output: str) -> Output:
-        pattern = re.compile(r"<\|channel\|>(\w+?)<\|message\|>(.*?)<\|end\|>")
-        channels = re.findall(pattern, output, flags=re.DOTALL)
+    def parse_output_gpt(self, output: str) -> Output:
+        pattern = re.compile(r"<\|channel\|>(\w+?)<\|message\|>(.*?)<\|end\|>", flags=re.DOTALL)
+        channels = re.findall(pattern, output)
 
         thinking = None
         text = None
@@ -53,3 +61,10 @@ class FewShotFormatter(BaseFormatter):
             text = output
 
         return Output(thinking=thinking, text=text)
+
+    def parse_output_qwen(self, output: str) -> Output:
+        pattern = re.compile(r"<think>(.*)</think>(.*)", flags=re.DOTALL)
+        if re.findall(pattern, output):
+            thinking, text = re.findall(pattern, output)
+            return Output(thinking=thinking, text=text)
+        return Output(thinking=None, text=output)

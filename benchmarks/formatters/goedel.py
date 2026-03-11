@@ -18,20 +18,17 @@ class GoedelFormatter(BaseFormatter):
             f"Think before you provide the lean statement."
         )
 
-        chat = [
-            {"role": "user", "content": user_prompt_content},
-        ]
-
-        # return TOKENIZER.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
-        return chat
+        return [{"role": "user", "content": user_prompt_content}]
 
     def parse_output(self, output: str) -> Output:
         """Extracts the last Lean 4 code block from the model's output."""
         try:
-            matches = re.findall(r"```lean4\n(.*?)\n```", output, re.DOTALL)
-            code = matches[-1].strip() if matches else output
             thinking_match = re.match(r"<think>(.*?)</think>", output, flags=re.DOTALL)
-            thinking = thinking_match.group(1) if thinking_match else None
+            thinking = thinking_match.group(1) if thinking_match else output
+
+            # code is either the match, or everything after the thinking.
+            matches = re.findall(r"```lean4\n(.*?)\n```", output, re.DOTALL)
+            code = matches[-1].strip() if matches else output[len(thinking):]
             return Output(thinking=thinking, text=code)
         except Exception:
-            return Output(thinking=None, text=output)
+            return Output(thinking=output, text="error: unable to parse model output")

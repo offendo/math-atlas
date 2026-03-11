@@ -8,7 +8,7 @@ TOKENIZER = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 class KiminaFormatter(BaseFormatter):
     def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
         assert item_type in {ItemType.THEOREM, ItemType.EXAMPLE, ItemType.EXERCISE}, "ATLASFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
-        prompt = "Please autoformalize the following problem in Lean 4 with a header. Use the following theorem name: {thm_example}.\n\n"
+        prompt = "Please autoformalize the following problem in Lean 4 with a header. Use the following theorem name: thm_example.\n\n"
         prompt += informal
 
         messages = [
