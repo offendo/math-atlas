@@ -16,9 +16,9 @@ export SPLIT_NAME="statements"
 # export SPLITS="definition"
 # export SPLIT_NAME="definitions"
 
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=2
 
-for MODEL in $QWEN3_8 $QWEN3_30 $GPT20 $GPT120; do
+for MODEL in $GPT120; do
 	echo "Running $SPLITS with model $MODEL"
 	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.json" | sed 's/\//./g');
 	python -m benchmarks.run_benchmark \

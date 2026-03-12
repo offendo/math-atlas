@@ -44,13 +44,15 @@ class FewShotFormatter(BaseFormatter):
         ]
         return messages
 
+
     def parse_output_gpt(self, output: str) -> Output:
-        pattern = re.compile(r"<\|channel\|>(\w+?)<\|message\|>(.*?)<\|end\|>", flags=re.DOTALL)
-        channels = re.findall(pattern, output)
+        pattern = re.compile(r"<\|channel\|>(\w+?)<\|message\|>(.*?)(<\|end\|>|$)", flags=re.DOTALL)
+        channels = re.finditer(pattern, output)
 
         thinking = None
         text = None
-        for channel, content in channels:
+        for match in channels:
+            channel, content = match.group(1), match.group(2)
             if channel == "analysis":
                 thinking = thinking + content if thinking else content
             elif channel == "final":
@@ -63,8 +65,8 @@ class FewShotFormatter(BaseFormatter):
         return Output(thinking=thinking, text=text)
 
     def parse_output_qwen(self, output: str) -> Output:
-        pattern = re.compile(r"<think>(.*)</think>(.*)", flags=re.DOTALL)
-        if re.findall(pattern, output):
-            thinking, text = re.findall(pattern, output)
-            return Output(thinking=thinking, text=text)
-        return Output(thinking=None, text=output)
+        thinking, sep, text = output.split('</think>')
+        if text:
+            return Output(thinking=thinking + sep, text=text)
+        else:
+            return Output(thinking=None, text=output)
