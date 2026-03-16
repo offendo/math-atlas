@@ -15,12 +15,14 @@ dependencies = [
     "langchain-community>=0.4.1",
     "langchain-core>=1.2.17",
     "langchain-localai>=1.0.0",
+    "lean-utils",
     "more-itertools>=10.8.0",
     "neo4j>=6.1.0",
     "openai>=2.24.0",
     "openai-harmony>=0.0.8",
     "pandas>=2.3.3",
     "requests>=2.32.5",
+    "scikit-learn>=1.8.0",
     "tiktoken>=0.12.0",
     "tqdm>=4.67.3",
     "transformers>=4.57.6",
@@ -40,6 +42,7 @@ line-length = 120
 [tool.uv.sources]
 blv = { git = "https://github.com/offendo/blv.git" }
 proofflow = { workspace = true }
+lean-utils = { git = "https://github.com/offendo/lean_utils.git" }
 
 [tool.uv.workspace]
 members = [

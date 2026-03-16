@@ -1,0 +1,124 @@
+Determine whether an informal mathematical definition (in natural language) and a formal mathematical definition (written in Lean 4) define **exactly the same concept**. Your goal is to judge if the two definitions are semantically equivalent in all respects, meaning they define precisely the same object, property, or mathematical structure. 
+
+Important constraints:
+- Mathlib (Lean's mathematics library) is treated as valid mathematical context—that is, you may use it as a background/reference to check meaning.
+- **However, it is not acceptable for a model to simply output the name of a definition/item from Mathlib as a means of aligning the two.** You must compare the full content/meaning of the two definitions, not just their names or aliases. For example, if the informal definition is "A natural number \( n \) is prime if its only divisors are 1 and itself," it is **not** sufficient to reference `"Nat.prime"` or use `def is_prime := Nat.prime` as the formalization—this counts as misaligned.
+- Do **not** align definitions if they differ even slightly in subtle details, implicit assumptions, quantifiers, or the scope of what is being defined.
+- Err on the side of caution—if there is any ambiguity or mismatch, output "misaligned".
+- If either of the informal or formal definitions are corrupted in any way (i.e., the informal statement is gibberish, the formal statement isn't valid Lean 4 code, etc.), output "misaligned".
+
+Process details:
+- Carefully analyze and compare the *full logical and semantic content* of both definitions before making any judgment.
+- Consider all relevant mathematical subtleties, implicit context, quantifiers, and definitional precision.
+- If the formal definition is simply a re-naming or direct call to a Mathlib definition (e.g., `def foo := Nat.prime`), classify this as "misaligned" unless the full definition is restated and matches completely in content.
+
+**Reasoning and Output Order:**
+- First, provide a thorough reasoning/explanation *before* presenting your final classification (alignment judgment). Reasoning must address any nuances, differences, or complete equivalence.
+- Second, output the final classification: "aligned" or "misaligned", and nothing more.
+
+# Output Format
+
+Always output a single JSON object with two fields:
+- "reasoning": (string; your explanation/justification, always appearing first)
+- "result": (string; either "aligned" or "misaligned", always appearing last)
+
+Example:
+{
+  "reasoning": "[detailed explanation of comparison, differences, and rationale for your classification]",
+  "result": "[either 'aligned' or 'misaligned']"
+}
+
+# Examples
+
+**Input:**
+- Informal: "A natural number is prime if its only positive divisors are 1 and itself."
+- Lean 4: def is_prime (n : ℕ) : Prop := Nat.prime n
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition describes primeness in terms of positive divisors, while the Lean definition simply delegates to Nat.prime, which is a Mathlib object and does not restate the definition. Because the formal definition does not explicitly reproduce the content of the informal definition but refers to Mathlib, this is not considered alignment.",
+  "result": "misaligned"
+}
+**Output Example End**
+
+**Input:**
+- Informal: "A function is injective if it maps distinct elements to distinct elements."
+- Lean 4: def injective {α β : Type} (f : α → β) : Prop := ∀ x y, f x = f y → x = y
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition states that an injective function maps distinct elements to distinct elements. The formal definition, however, expresses injectivity as: for all x and y, if f x = f y, then x = y. These are conceptually equivalent, but since the formal definition explicitly spells out the property using arbitrary x and y rather than relying on a reference to mathlib, the two definitions are fully aligned.",
+  "result": "aligned"
+}
+**Output Example End**
+
+**Input:**
+- Informal: "A group is a set with an associative binary operation, an identity element, and inverses for every element."
+- Lean 4: structure Group (G : Type) extends Monoid G where
+  inv : G → G
+  mul_left_inv : ∀ a : G, inv a * a = 1
+  mul_right_inv : ∀ a : G, a * inv a = 1
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition summarizes the necessary components for a group: associative binary operation, identity, and inverses. The Lean structure contains the necessary fields extending monoid (which already encodes associativity and identity), along with the inverse function and the appropriate inverse property. There are no missing aspects; the two definitions are in alignment.",
+  "result": "aligned"
+}
+**Output Example End**
+
+**Input:**
+- Informal: "A natural number is perfect if it equals the sum of its positive divisors other than itself."
+- Lean 4: def is_perfect_number (n : ℕ) : Prop := n = ∑ i ∈ n.properDivisors, i
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition characterizes a perfect number as being equal to the sum of its positive divisors other than itself. The formal definition constructs the sum over the proper divisors of n, which directly matches the informal description. Thus, both definitions are semantically equivalent.",
+  "result": "aligned"
+}
+**Output Example End**
+
+**Input:**
+- Informal: "A square matrix is invertible if there exists a matrix that when multiplied by it yields the identity."
+- Lean 4: def invertibleMatrix {n : ℕ} {R : Type*} [Semiring R]
+  (A : Matrix (Fin n) (Fin n) R) : Prop :=
+  ∃ B : Matrix (Fin n) (Fin n) R, A • B = 1 ∧ B • A = 1
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition gives invertibility as existence of a matrix such that multiplying it with the original yields the identity (implicitly in both orders if unspecified). The formal definition requires both A * B = 1 and B * A = 1. In Lean 4, Matrix multiplication requires the elements to be in a Semiring. As all the type requirements are met, and the statements express the same logic, both statements are semantically equivalent.",
+  "result": "aligned"
+}
+**Output Example End**
+
+**Input:**
+- Informal: "A natural number is prime if it is greater than 1 and its only positive divisors are 1 and itself."
+- Lean 4: def is_prime (n : ℕ) : Prop := n > 1 ∧ ∀ m : ℕ, m ∣ n → m = 1 ∨ m = n
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition gives the requirement that a prime is greater than 1 and only divisible by 1 and itself. The formal definition explicitly includes the n > 1 constraint and then for all divisors m, requires m equals 1 or n. The definitions match precisely.",
+  "result": "aligned"
+}
+**Output Example End**
+
+**Input:**
+- Informal: "A set is closed if its complement is open."
+- Lean 4: def is_closed {X : Type} [topological_space X] (A : set X) : Prop := is_open Aᶜ
+
+**Output Example Start**
+{
+  "reasoning": "The informal definition says a set is closed iff its complement is open. The formal definition defines is_closed in terms of is_open applied to the complement, aligning exactly with the informal version. There is no difference in meaning or structure.",
+  "result": "aligned"
+}
+**Output Example End**
+
+(For more complex cases, use appropriate placeholders, but real examples should match this length and level of detail.)
+
+# Notes
+
+- Always analyze the meaning of both informal and formal *definitions* (not theorem statements!) before making your classification.
+- Do not accept direct naming or referencing of Mathlib objects as proof of alignment—alignment requires complete correspondence in content, not just reference.
+- Output must always be as a JSON object with "reasoning" and "result" fields, in that order.
+
+**Reminder:**  
+Your task is to determine if an *informal and formal mathematical definition* define exactly the same mathematical object or concept. Rely on full comparison, not names or aliases; disallow "def foo := MathlibName" as an aligned answer. Output must always be JSON with "reasoning" before "result".

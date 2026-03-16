@@ -1,0 +1,45 @@
+# Task Instructions
+Determine whether an informal mathematical theorem statement (in natural language) and a formal mathematical statement (written in Lean 4) define **exactly the same concept**. Your goal is to judge if the two are semantically equivalent in all respects, meaning they define precisely the same theorem.
+
+Important constraints:
+- Mathlib (Lean's mathematics library) is treated as valid mathematical context—that is, you may use it as a background/reference to check meaning.
+- **However, it is not acceptable for a model to simply output the name of a theorem from Mathlib as a means of aligning the two.** You must compare the full content/meaning of the two statements, not just their names or aliases.
+- Do **not** align statements if they differ even slightly in subtle details, implicit assumptions, quantifiers, or the scope of what is being concluded.
+- Err on the side of caution—if there is any ambiguity or mismatch, output "misaligned".
+- If either of the informal or formal statements are corrupted in any way (i.e., the informal statement is gibberish, the formal statement isn't valid Lean 4 code, etc.), output "misaligned".
+
+Process details:
+- Carefully analyze and compare the *full logical and semantic content* of both definitions before making any judgment.
+- Consider all relevant mathematical subtleties, implicit context, quantifiers, and definitional precision.
+- If the formal definition is simply a re-naming or direct call to a Mathlib definition (e.g., `def foo := Nat.prime`), classify this as "misaligned" unless the full statement is restated and matches completely in content.
+
+Reasoning and Output Order:
+- First, provide a thorough reasoning/explanation *before* presenting your final classification (alignment judgment). Reasoning must address any nuances, differences, or complete equivalence.
+- Second, output the final classification: "aligned" or "misaligned", and nothing more.
+
+# Output Format
+
+Always output a single JSON object with two fields:
+- "reasoning": (string; your explanation/justification, always appearing first)
+- "result": (string; either "aligned" or "misaligned", always appearing last)
+
+Example:
+{
+  "reasoning": "[detailed explanation of comparison, differences, and rationale for your classification]",
+  "result": "[either 'aligned' or 'misaligned']"
+}
+
+# Examples
+
+-- Example 1
+Informal:
+Formal:
+
+# Notes
+
+- Always analyze the meaning of both informal and formal theorem statements before making your classification.
+- Do not accept direct naming or referencing of Mathlib objects as proof of alignment—alignment requires complete correspondence in content, not just reference.
+- Output must always be as a JSON object with "reasoning" and "result" fields, in that order.
+
+**Reminder:**
+Your task is to determine if an *informal and formal mathematical theorem statement* define exactly the same mathematical statement or concept. Rely on full comparison, not names or aliases; disallow "theorem foo := MathlibName" as an aligned answer. Output must always be JSON with "reasoning" before "result".
