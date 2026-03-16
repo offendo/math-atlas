@@ -31,9 +31,42 @@ Example:
 
 # Examples
 
--- Example 1
-Informal:
-Formal:
+
+### Example 1
+- Informal: "A real sequence converges to a limit if and only if every subsequence converges to the same limit."
+- Formal:
+open Filter Topology
+theorem seq_tendsto_iff_subseq
+  (u : ℕ → ℝ) (l : ℝ) :
+  Tendsto u atTop (𝓝 l) ↔
+  ∀ φ : ℕ → ℕ, StrictMono φ → Tendsto (fun n => u (φ n)) atTop (𝓝 l) := by sorry
+
+
+### Example 2
+- Informal: "Every continuous function on a closed interval is bounded."
+- Formal: theorem continuous_bounded
+  (f : ℝ → ℝ) :
+  ∃ M, ∀ x ∈ Set.Icc a b, |f x| ≤ M
+
+
+### Example 3
+- Informal: "The determinant of a matrix equals the determinant of its transpose."
+- Formal:
+open Matrix LinearAlgebra
+theorem det_transpose {R : Type*} [DecidableEq n] [Fintype n] [CommRing R] (A : Matrix n n R) :
+  det Aᵀ = det A := by sorry
+
+
+### Example 4
+- Informal: "Let \( f : X \to Y \) and \( g : Y \to Z \) be functions. If both \( f \) and \( g \) are injective, then the composition \( g \circ f \) is injective."
+- Formal:
+theorem injective_comp
+  {X Y Z : Type}
+  {f : X → Y} {g : Y → Z}
+  (hf : Function.Injective f)
+  (hg : Function.Injective g) :
+  Function.Injective (g ∘ f) := by sorry  
+
 
 # Notes
 
