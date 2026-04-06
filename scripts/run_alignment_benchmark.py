@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import pandas as pd
+import pickle
 
 import typer
 
@@ -84,7 +85,7 @@ def run(
     dataset: str = typer.Option(..., help="Input huggingface dataset name/path."),
     prompt_file: str = typer.Option(..., dir_okay=False, help="Prompt path."),
     output: Path = typer.Option(..., dir_okay=False, help="Path to save metrics to."),
-    max_tokens: float = typer.Option(10000, help="Max output tokens"),
+    max_tokens: int = typer.Option(10000, help="Max output tokens"),
     temperature: float = typer.Option(0.0, help="Sampling temperature."),
     top_p: float = typer.Option(1.0, help="Top-p sampling."),
     seed: int | None = typer.Option(None, help="Random seed."),
@@ -111,8 +112,11 @@ def run(
         )
     )
 
+    with open('/tmp/outputs_temp_storage.pkl', 'wb') as f:
+        pickle.dump(raw_outputs, f)
+
     # parse and save outputs
-    parsed_outputs = [try_json_loads(out.output[1].content[0].text) for out in raw_outputs]
+    parsed_outputs = [try_json_loads(out.output[-1].content[0].text) for out in raw_outputs]
     df = pd.DataFrame.from_records(parsed_outputs)
     df['label'] = ds['label']
     df.to_json(output)
