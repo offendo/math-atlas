@@ -36,6 +36,23 @@ SCHEMA = {
     },
 }
 
+CRITICLEAN_SCHEMA = {
+    "name": "criticlean_schema_alignment",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "reasoning": {"type": "string", "description": "The explanation or justification for the result."},
+            "result": {
+                "type": "string",
+                "enum": ["Correct", "Incorrect"],
+            },
+        },
+        "required": ["reasoning", "result"],
+        "additionalProperties": False,
+    },
+}
+
 
 def load_prompt(path: Path):
     with open(path, "r") as f:
@@ -43,16 +60,23 @@ def load_prompt(path: Path):
 
 
 def make_prompt(informal, formal, prompt):
-    return [
-        {"role": "system", "content": prompt},
-        {"role": "user", "content": f"Informal:\n{informal}\n\nFormal:\n{formal}"},
-    ]
+    if '{formal}' in prompt:
+        return prompt.format(informal=informal, formal=formal)
+    else:
+        return [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": f"Informal:\n{informal}\n\nFormal:\n{formal}"},
+        ]
 
 
 def try_json_loads(s):
     try:
-        out = json.loads(s)
-        out.update({'error': None})
+        if '</think>' in s:
+            thinking, text = s.split('</think>')
+        else:
+            text = s
+        out = json.loads(text)
+        out.update({'error': None, 'thinking': thinking})
         return out
     except Exception as e:
         return {'error': e, 'result': "misaligned", "reasoning": s}
@@ -93,7 +117,8 @@ def run(
 ):
     # load dataset
     prompt = load_prompt(prompt_file)
-    ds = load_dataset(dataset, split="train")
+    ds = load_dataset(dataset)
+    ds = ds[list(ds.keys())[0]]
     ds = ds.map(lambda ex: {"prompt": make_prompt(ex["informal"], ex["formal"], prompt)})
     if n_examples is not None:
         ds = ds.shuffle(seed).select(range(n_examples))
@@ -106,9 +131,9 @@ def run(
             prompts,
             model=model,
             max_output_tokens=max_tokens,
-            temperature=temperature,
+            # temperature=temperature,
             top_p=top_p,
-            reasoning={"reasoning_effort": "high"},
+            # reasoning={"reasoning_effort": "high"},
         )
     )
 
@@ -122,7 +147,7 @@ def run(
     df.to_json(output)
 
     # evaluate score
-    predictions = df['result']
+    predictions = df['result'].apply(lambda x: x in {'Correct', 'aligned', True})
     golds = df['label']
 
     report = classification_report(golds, predictions)

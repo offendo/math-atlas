@@ -55,12 +55,15 @@ def generate(
 
         sampling_params = SamplingParams(
             max_tokens=max_tokens,
-            # temperature=temperature,
-            # top_p=top_p,
+            temperature=temperature,
+            top_p=top_p,
             seed=seed,
             skip_special_tokens=False,
         )
-        llm_outputs = llm.chat(prompts, sampling_params, use_tqdm=True)
+        if isinstance(prompts[0], list):
+            llm_outputs = llm.chat(prompts, sampling_params, use_tqdm=True)
+        elif isinstance(prompts[0], str):
+            llm_outputs = llm.generate(prompts, sampling_params, use_tqdm=True)
         raw_outputs = []
         outputs = []
         for out in llm_outputs:
@@ -119,6 +122,7 @@ def run(
     tensor_parallel_size: int = typer.Option(1, help="Tensor parallel size."),
     data_parallel_size: int = typer.Option(1, help="Data parallel size."),
     skip_verification: bool = typer.Option(False, help="Skip verification"),
+    add_local_context: int | None = typer.Option(None, help="Number of tokens of prior context to include"),
 ):
     """Run vLLM on a dataset, verify outputs, and save results."""
 

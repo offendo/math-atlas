@@ -70,6 +70,9 @@ Extract a proof only when:
 Special rule:
 If a proof appears only as part of an exercise prompt (e.g., “Prove that …”) and contains no mathematical argument beyond the statement itself, do NOT extract a separate proof entity.
 
+Caution:
+Be careful to extract a full proof, and do not cut off any information halfway through.
+
 
 ### 4. Examples
 

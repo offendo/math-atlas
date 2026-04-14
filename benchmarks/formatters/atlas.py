@@ -1,7 +1,7 @@
 from transformers import AutoTokenizer
 from .base import BaseFormatter, ItemType, Output
 
-MODEL_NAME = "XiaoyangLiu-sjtu/ATLAS_Translator_D"
+MODEL_NAME = "XiaoyangLiu-sjtu/ATLAS_Translator_L"
 TOKENIZER = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
 INSTRUCTION = """You are an expert in the Lean4 theorem prover. Your task is to translate theorems from natural language into formal Lean4 statements. Please follow these guidelines:
@@ -22,13 +22,13 @@ Now please begin by carefully reading the natural language statement provided, a
 class ATLASFormatter(BaseFormatter):
     def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
         assert item_type in {ItemType.THEOREM, ItemType.EXAMPLE, ItemType.EXERCISE}, "ATLASFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
-        messages = [
-            {"role": "system", "content": "You are an expert in mathematics and Lean 4."},
-            {"role": "user", "content": INSTRUCTION + "\n" + informal},
-        ]
-
-        # return TOKENIZER.apply_chat_template(message, tokenize=False, add_generation_prompt=True)
-        return messages
+        # messages = [
+        #     {"role": "system", "content": "You are an expert in mathematics and Lean 4."},
+        #     {"role": "user", "content": INSTRUCTION + "\n" + informal},
+        # ]
+        #
+        # return TOKENIZER.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        return INSTRUCTION + "\n" + informal
 
     def parse_output(self, output: str) -> Output:
         return Output(thinking=None, text=output)
