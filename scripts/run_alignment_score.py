@@ -67,6 +67,7 @@ def run(
     temperature: float = typer.Option(0.0, help="Sampling temperature."),
     top_p: float = typer.Option(1.0, help="Top-p sampling."),
     n_examples: int | None = typer.Option(None, help="Number of examples to run (for debugging)."),
+    entity_types: list[str] = typer.Option(..., help="Entity type(s) to autoformalize; repeatable or 'all'."),
 ):
     """Run LLM-based alignment scoring on predictions."""
 
@@ -79,6 +80,8 @@ def run(
     df = pd.read_json(input_path)
     if n_examples is not None:
         df = df.sample(n_examples, random_state=1337)
+    if entity_types != ["all"]:
+        df = df[df.entity_type.isin(entity_types)]
     logger.info("Loaded predictions from `%s` (%d rows)", input_path, len(df))
 
     # Get only passing predictions
