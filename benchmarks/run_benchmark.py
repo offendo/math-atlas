@@ -43,7 +43,7 @@ def generate(
     tensor_parallel_size: int = 1,
     data_parallel_size: int = 1,
     dtype: str | None = None,
-) -> list[Output]:
+) -> tuple[list, list]:
     if model_url is None:
         from vllm import LLM, SamplingParams  # type:ignore
 
@@ -62,7 +62,7 @@ def generate(
         )
         if isinstance(prompts[0], list):
             llm_outputs = llm.chat(prompts, sampling_params, use_tqdm=True)
-        elif isinstance(prompts[0], str):
+        else:
             llm_outputs = llm.generate(prompts, sampling_params, use_tqdm=True)
         raw_outputs = []
         outputs = []
@@ -177,7 +177,7 @@ def run(
             logger.warning("Alignment check not implemented. Skipping for now.")
             alignment_output = [dict(aligned=False) for _ in answers]
 
-        verified_rate = sum([out["verified"] for out in compiler_output]) / len(compiler_output)
+        verified_rate = sum([out["verified"] if out else 0 for out in compiler_output]) / len(compiler_output)
         aligned_rate = sum([out["aligned"] for out in alignment_output]) / len(alignment_output)
 
         print(f"Verified: {100 * verified_rate:.2f}%")

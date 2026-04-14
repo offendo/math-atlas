@@ -75,6 +75,7 @@ def try_json_loads(s):
             thinking, text = s.split('</think>')
         else:
             text = s
+            thinking = None
         out = json.loads(text)
         out.update({'error': None, 'thinking': thinking})
         return out
@@ -107,7 +108,7 @@ def run(
     model: str = typer.Option(..., help="Model name or path for vLLM."),
     model_url: str | None = typer.Option(default=None, help="vLLM url"),
     dataset: str = typer.Option(..., help="Input huggingface dataset name/path."),
-    prompt_file: str = typer.Option(..., dir_okay=False, help="Prompt path."),
+    prompt_file: Path = typer.Option(..., dir_okay=False, help="Prompt path."),
     output: Path = typer.Option(..., dir_okay=False, help="Path to save metrics to."),
     max_tokens: int = typer.Option(10000, help="Max output tokens"),
     temperature: float = typer.Option(0.0, help="Sampling temperature."),
@@ -153,7 +154,7 @@ def run(
     report = classification_report(golds, predictions)
     print(report)
     with open(Path(output).with_suffix('.metrics'), "w") as f:
-        f.write(report)
+        f.write(str(report))
 
 
 if __name__ == "__main__":
