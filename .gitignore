@@ -16,3 +16,6 @@ chromadb/
 # graph db stuff
 neo4j/
 outputs/
+
+# other data
+data/
