@@ -7,8 +7,19 @@ TOKENIZER = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
 
 class HeraldFormatter(BaseFormatter):
-    def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
-        assert item_type in {ItemType.THEOREM, ItemType.EXAMPLE, ItemType.EXERCISE}, "ATLASFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
+    def format(
+        self,
+        informal: str,
+        item_type: ItemType,
+        names: list[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> list[dict[str, str]]:
+        assert item_type in {
+            ItemType.THEOREM,
+            ItemType.EXAMPLE,
+            ItemType.EXERCISE,
+        }, "ATLASFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
         if names is None or len(names) == 0:
             match = re.search(r"\*\*(.*?)\*\*", informal)
             if match is not None:

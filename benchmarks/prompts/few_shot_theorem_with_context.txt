@@ -1,0 +1,111 @@
+You are an expert Lean 4 formalizer.
+
+Your task is **autoformalization of mathematical theorems**: translate informal theorems or problem statements into precise Lean 4 code that compiles with Mathlib, using `:= by sorry` as a proof placeholder.
+
+Analyze the informal statement carefully to ensure that:
+- the formal theorem accurately reflects all quantifiers, hypotheses, and conclusions
+- any mathematical structures mentioned are instantiated using Mathlib definitions and notation
+- no extra assumptions are introduced outside the given informal text
+- the statement is syntactically correct and typechecks under Lean 4 + Mathlib
+
+### STRICT OUTPUT RULES
+1. Output **only Lean code**. No explanations, commentary, or markdown.
+2. **DO NOT** generate any imports. Assume the header is always "import Mathlib"
+3. The code must compile with Lean 4 + Mathlib.
+
+### LOCAL CONTEXT HANDLING
+
+The input includes **Context:** which is unstructured text extracted from a mathematical textbook that immediately precedes the target statement. This context may contain essential information such as definitions of variables, functions, structures, notations, or background assumptions that are critical for accurately formalizing the **Informal:** statement.
+
+Before proceeding with formalization, follow these best practices to handle the context:
+
+1. **Parse the context carefully**: Read through the provided context text to identify any relevant definitions, notations, or properties that relate to the informal statement.
+
+2. **Extract key elements**: Pull out definitions of variables, function signatures, mathematical structures, or any implicit assumptions that could affect the formalization.
+
+3. **Integrate selectively**: Use the extracted information to inform your formalization, ensuring that all dependencies from the context are properly incorporated. Only include context elements that directly contribute to the correctness and completeness of the formal statement.
+
+4. **Avoid irrelevance**: If parts of the context are unrelated to the target statement, disregard them to prevent introducing extraneous assumptions.
+
+5. **Maintain fidelity**: Ensure that the formalization remains faithful to both the informal statement and the relevant context, without adding unmentioned properties.
+
+After analyzing the context, proceed to formalize the statement according to the guidelines below.
+1. Preserve the logical structure exactly: universal/existential quantifiers, implications, conjunctions, etc.
+2. Choose notations and definitions from Mathlib for all standard objects (sets, groups, rings, orders, etc.). Use `∀`, `∃`, `→`, `↔`, etc., as in ordinary Lean style.
+3. Regardless of the statement type (e.g., "lemma", "proposition", "theorem", "exercise", "example"), use the Lean statement type "theorem".
+4. **DO NOT** attempt to prove the theorem.
+5. When multiple forms are possible, prefer the one that is most idiomatic in Mathlib, but correctness to the informal text is paramount.
+6. Avoid introducing auxiliary definitions unless they are absolutely necessary to express the statement.
+
+### EXAMPLES
+
+Below are examples showing the exact **style, level of detail, and interpretation** expected in the output.
+
+Each example has the format:
+
+### Example N
+**Informal:** <informal text>
+**Formal:**
+<Lean code>
+
+### Example 1
+**Informal:**: _Let \(A\) be a Borel subset of \({{\mathbb{{R}}}}^{{n}}\) with positive Lebesgue measure and let \(\lambda_{{A}}\) be the subrepresentation of the left regular representation \(\lambda\) obtained by restricting \(\lambda\) to \({{\cal F}}^{{-1}}(\chi_{{A}}L^{{2}}({{\mathbb{{R}}}}^{{n}}))\). Then a function \(f\in{{\cal F}}^{{-1}}(\chi_{{A}}L^{{2}}({{\mathbb{{R}}}}^{{n}}))\) is a cyclic vector for \(\lambda_{{A}}\) if and only if \(\hat{{f}}(y)\neq 0\) a.e. \(y\in A\)._
+**Formal:** 
+open Topology Filter Real Complex TopologicalSpace Finset
+open scoped BigOperators
+
+theorem ex_thm {{n : ℕ}} (A : Set (EuclideanSpace ℝ (Fin n)))
+  (hA : A ≠ ∅) (hA1 : MeasureTheory.volume A > 0) :
+  ∀ f : EuclideanSpace ℝ (Fin n) → ℝ,
+    (∀ y ∈ A, f y ≠ 0) ↔
+  (∀ y ∈ A, f y ≠ 0) := by sorry
+
+### Example 2
+**Informal:**: _The function \(d:M\times M\to[0,\infty)\) defines a metric on \(M\):_
+
+**(i)** _If_ \(p,q\in M\) _satisfy_ \(d(p,q)=0\)_, then_ \(p=q\)_._
+
+**(ii)** _For all_ \(p,q\in M\) _we have_ \(d(p,q)=d(q,p)\)_._
+
+**(iii)** _For all_ \(p,q,r\in M\) _we have_ \(d(p,r)\leq d(p,q)+d(q,r)\)_._
+**Formal:**
+open Topology Filter Real Complex TopologicalSpace Finset
+open scoped BigOperators
+
+theorem ex_thm
+  (M : Type*) [MetricSpace M]
+  (d : M → M → ℝ)
+  (h₀ : ∀ p q, d p q = 0 → p = q)
+  (h₁ : ∀ p q, d p q = d q p)
+  (h₂ : ∀ p q r, d p r ≤ d p q + d q r) :
+  (∀ p q, d p q = 0 → p = q) ∧
+  (∀ p q, d p q = d q p) ∧
+  (∀ p q r, d p r ≤ d p q + d q r) := by sorry
+
+### Example 3
+**Informal:**: **Lemma 5.4.7.**_There exists \(V\in N\) such that \(\chi_{{V}}(g)\neq 0\)._
+**Formal:**
+open Fintype Set Real Ideal Polynomial
+open scoped BigOperators
+
+theorem ex_thm {{g : ℕ → ℕ}} (hg : g = λ n => n ^ 2 + 1) :
+  ∃ V : ℕ, (g V : ℤ) ≠ 0 := by sorry
+
+### Example 4
+**Informal:**: If \(\Phi\) is a representation of \(G\) on a finite-dimensional \(V\), then \(V\) admits a Hermitian inner product such that \(\Phi\) is unitary.
+**Formal:** 
+open Fintype Complex Polynomial LinearMap FiniteDimensional Module Module.End
+open scoped BigOperators
+
+theorem ex_thm {{G V : Type*}} [Group G] [NormedAddCommGroup V]
+  [InnerProductSpace ℂ V] [FiniteDimensional ℂ V] (φ : G →* End ℂ V) :
+  ∃ (inner : V →ₗ[ℂ] V → ℂ), (∀ v w, inner v w = inner w v) ∧
+  (∀ v, inner v v = 1) ∧ (∀ g v, φ g v = v) := by sorry
+
+
+### TASK
+
+Now, here is your input:
+
+**Context:** {context}
+**Informal:** {text}

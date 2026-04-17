@@ -122,7 +122,7 @@ def run(
     tensor_parallel_size: int = typer.Option(1, help="Tensor parallel size."),
     data_parallel_size: int = typer.Option(1, help="Data parallel size."),
     skip_verification: bool = typer.Option(False, help="Skip verification"),
-    add_local_context: int | None = typer.Option(None, help="Number of tokens of prior context to include"),
+    n_context_tokens: int | None = typer.Option(None, help="Number of tokens of prior context to include"),
 ):
     """Run vLLM on a dataset, verify outputs, and save results."""
 
@@ -134,8 +134,17 @@ def run(
         ds = ds.filter(lambda ex, types=item_type: ex["type"] in types)
         logger.info("Filtered dataset to %s (%i -> %i items)", item_type, original_len, len(ds))
 
+    id2tokens = None
+    if n_context_tokens is not None:
+        context_ds = load_dataset("offendo/math-atlas-documents", split='train')
+        id2text = {item['file_id']: item['content'] for item in context_ds.to_list()}
+        tokenizer = AutoTokenizer.from_pretrained(model)
+        tokenized_content = tokenizer(id2text.values(), truncation=False)
+        id2tokens = {file_id: tokens for file_id, tokens in zip(id2text.keys(), tokenized_content.input_ids)}
+
+
     model_formatter = get_formatter(model)
-    ds = ds.map(lambda batch: model_formatter.format_batch(batch), batched=True)
+    ds = ds.map(lambda batch: model_formatter.format_batch(batch, id2tokens=id2tokens, n_tokens=n_context_tokens), batched=True)
 
     raw_outputs, parsed_outputs = generate(
         ds["prompt"],

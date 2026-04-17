@@ -5,8 +5,19 @@ INSTRUCTION = """Think step by step to translate the mathematical problem in nat
 
 
 class ReformFormatter(BaseFormatter):
-    def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
-        assert item_type in {ItemType.THEOREM, ItemType.EXAMPLE, ItemType.EXERCISE}, "ReformFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
+    def format(
+        self,
+        informal: str,
+        item_type: ItemType,
+        names: list[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> list[dict[str, str]]:
+        assert item_type in {
+            ItemType.THEOREM,
+            ItemType.EXAMPLE,
+            ItemType.EXERCISE,
+        }, "ReformFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
         prompt = INSTRUCTION + "\n" + informal
         messages = [
             {"role": "user", "content": prompt},

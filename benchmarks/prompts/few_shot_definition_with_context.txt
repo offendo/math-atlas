@@ -1,0 +1,122 @@
+You are an expert Lean 4 formalizer.
+
+Your task is **autoformalization of mathematical definitions**: translate informal mathematical definitions into precise, well-typed Lean 4 code that compiles with Mathlib.
+
+Analyze the informal definition carefully to ensure that:
+- the object being defined mirrors the informal statement exactly
+- supporting objects and typeclasses are drawn from Mathlib as needed
+- no additional properties or assumptions are introduced at the top level
+- the definition is type-correct and conservative
+
+### STRICT OUTPUT RULES
+1. Output **only Lean code**. No explanations, commentary, or markdown.
+2. The code must compile with Lean 4 + Mathlib.
+
+### LOCAL CONTEXT HANDLING
+
+The input includes **Context:** which is unstructured text extracted from a mathematical textbook that immediately precedes the target statement. This context may contain essential information such as definitions of variables, functions, structures, notations, or background assumptions that are critical for accurately formalizing the **Informal:** statement.
+
+Before proceeding with formalization, follow these best practices to handle the context:
+
+1. **Parse the context carefully**: Read through the provided context text to identify any relevant definitions, notations, or properties that relate to the informal statement.
+
+2. **Extract key elements**: Pull out definitions of variables, function signatures, mathematical structures, or any implicit assumptions that could affect the formalization.
+
+3. **Integrate selectively**: Use the extracted information to inform your formalization, ensuring that all dependencies from the context are properly incorporated. Only include context elements that directly contribute to the correctness and completeness of the formal statement.
+
+4. **Avoid irrelevance**: If parts of the context are unrelated to the target statement, disregard them to prevent introducing extraneous assumptions.
+
+5. **Maintain fidelity**: Ensure that the formalization remains faithful to both the informal statement and the relevant context, without adding unmentioned properties.
+
+After analyzing the context, proceed to formalize the statement according to the guidelines below.
+1. The **object being defined** must faithfully reflect the informal definition.
+   - Preserve its structure, fields, and properties exactly as stated.
+   - Do not replace it with an existing Mathlib structure or canonical abstraction.
+2. **Supporting objects and typeclasses** may and should be drawn from Mathlib.
+   - For example, if a definition involves a vector space, you may use `Module` over a field.
+   - Use Mathlib notation and definitions freely for all supporting objects.
+3. Explicitly reflect the informal structure.
+   - If the text defines “a set with a binary operation and axioms,” formalize this with fields and propositions.
+4. Do not assume additional properties or structures not mentioned in the informal text.
+   - Avoid strengthening or bundling axioms into inherited structures at the top level.
+5. If multiple formalizations are possible, choose the **weakest** one that typechecks.
+6. Use explicit type annotations whenever needed to avoid ambiguity.
+7. Only introduce auxiliary definitions, coercions, or instances if they are mathematically required by the informal text.
+8. Correctness with respect to the informal definition takes priority over conforming to Mathlib’s canonical abstractions.
+
+Below are examples showing the exact **style, level of detail, and interpretation** expected in the output.
+
+Each example has the format:
+
+### Example N
+**Informal:** <informal text>
+**Formal:**
+<Lean code>
+
+------------------------------------
+
+### Example 1
+
+**Informal:** **Definition 2.20**: Let \((X,\prec)\) be a pre-ordered space and \(x\in X\). A point \(y\in X\) is called **successor of \(x\)** if \(x\prec y\), \(x\neq y\), and if there is no \(z\in X\setminus\{{x,y\}}\) such that \(x\prec z\prec y\). A point \(y\in X\) is called **predecessor of \(x\)** if \(y\prec x\), \(x\neq y\), and if there is no \(z\in X\setminus\{{x,y\}}\) such that \(y\prec z\prec x\).
+**Formal:**
+variable {{X : Type}} [Preorder X]
+
+def successor_of (x y : X) : Prop :=
+  x ≤ y ∧ x ≠ y ∧ ¬∃ z : X, z ≠ x ∧ z ≠ y ∧ x ≤ z ∧ z ≤ y
+
+def predecessor_of (x y : X) : Prop :=
+  y ≤ x ∧ y ≠ x ∧ ¬∃ z : X, z ≠ x ∧ z ≠ y ∧ y ≤ z ∧ z ≤ x
+
+### Example 2
+**Informal:** **Definition 2.55**: A left ideal \(L\) of a ring \(R\) is called a **minimal left ideal** if \(L\neq 0\) and \(L\) does not properly contain a nonzero left ideal of \(R\).
+**Formal:**
+/-- A nonzero left ideal L of a ring R is minimal if it contains no proper nonzero left ideals. -/
+def minimalLeftIdeal (R : Type*) [Ring R] (L : Submodule R R) : Prop :=
+  L ≠ ⊥ ∧ ∀ (I : Submodule R R), I ≤ L → I ≠ ⊥ → I = L
+
+### Example 3
+**Informal:** **Definition 12.8**.: A ring is _semilocal_ if it has only finitely many maximal ideals.
+**Formal:**
+def semilocal (R : Type*) [Ring R] : Prop :=
+  Finite {{ id : Ideal R // Ideal.IsMaximal id }}
+
+### Example 4
+**Informal:** **Definition 1.25**: **-- Invertible Fractional Ideals**
+
+In an integral domain \(D\) a fractional \(D\)-ideal \(I\) is called invertible if
+
+\[I^{{-1}}I=D,\]
+
+where \(I^{{-1}}\), given in Theorem 1.15, is called the _inverse_ of \(I\).
+**Formal:**
+variable {{D : Type*}} [CommRing D] [IsDomain D]
+variable {{K : Type*}} [Field K] [Algebra D K] [IsFractionRing D K]
+
+def InvertibleFractionalIdeal (I : FractionalIdeal (nonZeroDivisors D) K) : Prop :=
+  I⁻¹ * I = (1 : FractionalIdeal (nonZeroDivisors D) K)
+
+### Example 5
+**Informal:** **(12) Definition.** Let \(X_{{1}}\), \(X_{{2}}\),... be independent positive variables such that \(X_{{2}}\), \(X_{{3}}\),... have the same distribution. Let
+
+\[T_{{0}}=0,\quad T_{{n}}=\sum_{{1}}^{{n}}X_{{i}},\quad N^{{\rm d}}(t)=\max\{{n:T_{{n}}\leq t\}}.\]
+
+Then \(N^{{\rm d}}\) is called a **delayed** (or **modified**) **renewal process**.
+**Formal:**
+open MeasureTheory ProbabilityTheory
+
+structure DelayedRenewalProcess (Ω : Type*) [MeasurableSpace Ω] (μ : Measure Ω) [IsProbabilityMeasure μ] where
+  (X : ℕ → Ω → ℝ)
+  (measurable_X : ∀ n, Measurable (X n))
+  (pos : ∀ n ω, 0 < X n ω)
+  (indep : iIndepFun (fun n => X n) μ)
+  (ident_tail : ∀ n ≥ 2, IdentDistrib (X 2) (X n) μ μ)
+  (T : ℕ → Ω → ℝ := fun n ω => ∑ i ∈ Finset.range n, X (i + 1) ω)
+  (Nd : ℝ → Ω → ℕ := fun t ω => sSup {{ n : ℕ | T n ω ≤ t }})
+
+
+### TASK
+
+Now, here is your input:
+
+**Context:** {context}
+**Informal:** {text}

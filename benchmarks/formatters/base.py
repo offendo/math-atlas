@@ -22,15 +22,41 @@ class BaseFormatter:
     def __init__(self, *args, **kwargs):
         pass
 
-    def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
+    def format(
+        self,
+        informal: str,
+        item_type: ItemType,
+        names: list[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> str | list[dict[str, str]]:
         raise NotImplementedError()
 
     def parse_output(self, output: str) -> Output:
         raise NotImplementedError()
 
-    def format_batch(self, batch) -> dict[str, list[list[dict[str, str]]]]:
+    def format_batch(
+        self,
+        batch,
+        id2tokens: dict[str, list[int]] | None = None,
+        n_tokens: int | None = None,
+    ) -> dict[str, list[str | list[dict[str, str]]]]:
         prompts = [
-            self.format(text, ItemType[item_type.upper()], names)
-            for text, item_type, names in zip(batch["text"], batch["type"], batch["names"])
+            self.format(
+                text,
+                ItemType[item_type.upper()],
+                names,
+                start_index=start_index,
+                file_id=file_id,
+                id2tokens=id2tokens,
+                n_tokens=n_tokens,
+            )
+            for text, item_type, names, file_id, start_index in zip(
+                batch["text"],
+                batch["type"],
+                batch["names"],
+                batch["file_id"],
+                batch["start_index"],
+            )
         ]
         return {"prompt": prompts}

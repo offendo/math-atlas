@@ -7,7 +7,7 @@ TOKENIZER = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 
 
 class GoedelFormatter(BaseFormatter):
-    def format(self, informal: str, item_type: ItemType, names: list[str] | None = None) -> list[dict[str, str]]:
+    def format(self, informal: str, item_type: ItemType, names: list[str] | None = None, *args, **kwargs) -> list[dict[str, str]]:
         assert item_type in {ItemType.THEOREM, ItemType.EXAMPLE, ItemType.EXERCISE}, "GoedelFormatter only supports THEOREM, EXAMPLE, and EXERCISEs"
         # Construct the prompt for the model
         user_prompt_content = (
