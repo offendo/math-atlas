@@ -18,7 +18,7 @@ export SPLIT_NAME="statements"
 
 export CUDA_VISIBLE_DEVICES=2
 
-for MODEL in $ATLAS_L $GOEDEL8; do
+for MODEL in $ATLAS_L $HERALD; do
 	echo "Running $SPLITS with model $MODEL"
 	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.json" | sed 's/\//./g');
 	python -m benchmarks.run_benchmark \
