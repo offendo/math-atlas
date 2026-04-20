@@ -32,18 +32,15 @@ class FewShotFormatter(BaseFormatter):
         file_id: str | None = None,
         start_index: int | None = None,
         id2tokens: dict[str, list[int]] | None = None,
+        id2text: dict[str, str] | None = None,
         n_tokens: int | None = None,
         *args,
         **kwargs,
     ) -> list[dict[str, str]]:
 
         if n_tokens and id2tokens and file_id is not None and start_index is not None:
-            from transformers import AutoTokenizer
-
-            tokenizer = AutoTokenizer.from_pretrained(self.model, trust_remote_code=True)
-            tokens = id2tokens[file_id]
-            context_tokens = tokens[max(0, start_index - n_tokens) : start_index]
-            context = tokenizer.decode(context_tokens, skip_special_tokens=True)
+            all_text = id2text[file_id]
+            context = all_text[max(0, start_index-(n_tokens * 4)):start_index]
 
             # choose template file according to the item type
             match item_type:
@@ -60,7 +57,7 @@ class FewShotFormatter(BaseFormatter):
 
             messages = [
                 {"role": "system", "content": "You are an expert at Lean 4 and Mathematics."},
-                {"role": "user", "content": template.format(local_context=context, text=informal)},
+                {"role": "user", "content": template.format(context=context, text=informal)},
             ]
         else:
             # choose template file according to the item type

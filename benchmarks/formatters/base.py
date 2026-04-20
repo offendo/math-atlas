@@ -39,6 +39,7 @@ class BaseFormatter:
         self,
         batch,
         id2tokens: dict[str, list[int]] | None = None,
+        id2text: dict[str, str] | None = None,
         n_tokens: int | None = None,
     ) -> dict[str, list[str | list[dict[str, str]]]]:
         prompts = [
@@ -49,6 +50,7 @@ class BaseFormatter:
                 start_index=start_index,
                 file_id=file_id,
                 id2tokens=id2tokens,
+                id2text=id2text,
                 n_tokens=n_tokens,
             )
             for text, item_type, names, file_id, start_index in zip(
@@ -56,7 +58,7 @@ class BaseFormatter:
                 batch["type"],
                 batch["names"],
                 batch["file_id"],
-                batch["start_index"],
+                batch["item_start"],
             )
         ]
         return {"prompt": prompts}

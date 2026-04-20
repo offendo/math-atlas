@@ -16,11 +16,12 @@ export SPLIT_NAME="statements"
 # export SPLITS="definition"
 # export SPLIT_NAME="definitions"
 
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=1
+export CONTEXT=0
 
-for MODEL in $ATLAS_L $HERALD; do
+for MODEL in $ATLAS_L; do
 	echo "Running $SPLITS with model $MODEL"
-	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.json" | sed 's/\//./g');
+	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.context=${CONTEXT}.json" | sed 's/\//./g');
 	python -m benchmarks.run_benchmark \
 		 $SPLITS \
 		--model=$MODEL\
@@ -30,6 +31,8 @@ for MODEL in $ATLAS_L $HERALD; do
 		--max-tokens=10000 \
 		--temperature=0.2 \
 		--top-p=0.95 \
-		--seed=1234
+		--seed=1234 \
+		--n-context-tokens=$CONTEXT \
+		--model-url="http://localhost:8002/v1"
 	echo "...done!"
 done

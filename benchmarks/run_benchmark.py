@@ -50,6 +50,7 @@ def generate(
         llm = LLM(
             model=model,
             tensor_parallel_size=tensor_parallel_size,
+            max_model_len=10000,
         )
         logger.info("Loaded model `%s`", model)
 
@@ -80,7 +81,6 @@ def generate(
                 response = await client.responses.create(
                     model=model,
                     input=prompt,
-                    reasoning={"effort": "low"},
                     temperature=temperature,
                     max_output_tokens=max_tokens,
                     top_p=top_p,
@@ -135,16 +135,17 @@ def run(
         logger.info("Filtered dataset to %s (%i -> %i items)", item_type, original_len, len(ds))
 
     id2tokens = None
+    id2text = None
     if n_context_tokens is not None:
         context_ds = load_dataset("offendo/math-atlas-documents", split='train')
         id2text = {item['file_id']: item['content'] for item in context_ds.to_list()}
         tokenizer = AutoTokenizer.from_pretrained(model)
-        tokenized_content = tokenizer(id2text.values(), truncation=False)
+        tokenized_content = tokenizer(list(id2text.values()), truncation=False)
         id2tokens = {file_id: tokens for file_id, tokens in zip(id2text.keys(), tokenized_content.input_ids)}
 
 
     model_formatter = get_formatter(model)
-    ds = ds.map(lambda batch: model_formatter.format_batch(batch, id2tokens=id2tokens, n_tokens=n_context_tokens), batched=True)
+    ds = ds.map(lambda batch: model_formatter.format_batch(batch, id2tokens=id2tokens, id2text=id2text, n_tokens=n_context_tokens), batched=True)
 
     raw_outputs, parsed_outputs = generate(
         ds["prompt"],
@@ -211,7 +212,6 @@ def run(
             }
             json.dump(metrics, f, indent=2)
         logger.info(f"Saved results to {output} and metrics to {metric_path}")
-
 
 
 if __name__ == "__main__":
