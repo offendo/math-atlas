@@ -123,6 +123,7 @@ def run(
     data_parallel_size: int = typer.Option(1, help="Data parallel size."),
     skip_verification: bool = typer.Option(False, help="Skip verification"),
     n_context_tokens: int | None = typer.Option(None, help="Number of tokens of prior context to include"),
+    prompt_file: str | None = typer.Option(None, help="Force a specific prompt file regardless of item type; if not provided, defaults are used based on item type and context."),
 ):
     """Run vLLM on a dataset, verify outputs, and save results."""
 
@@ -143,8 +144,12 @@ def run(
         tokenized_content = tokenizer(list(id2text.values()), truncation=False)
         id2tokens = {file_id: tokens for file_id, tokens in zip(id2text.keys(), tokenized_content.input_ids)}
 
+    # Build formatter kwargs with forced prompt file if provided
+    formatter_kwargs = {}
+    if prompt_file is not None:
+        formatter_kwargs['prompt_file'] = prompt_file
 
-    model_formatter = get_formatter(model)
+    model_formatter = get_formatter(model, **formatter_kwargs)
     ds = ds.map(lambda batch: model_formatter.format_batch(batch, id2tokens=id2tokens, id2text=id2text, n_tokens=n_context_tokens), batched=True)
 
     raw_outputs, parsed_outputs = generate(

@@ -39,7 +39,7 @@ class Models(Enum):
             raise ValueError(f"unsupported model: {model_name}")
 
 
-def get_formatter(model_name):
+def get_formatter(model_name, **kwargs):
     model = Models.from_str(model_name)
     formatter_dict = {
         Models.HERALD: HeraldFormatter,
@@ -50,5 +50,9 @@ def get_formatter(model_name):
         Models.REFORM: ReformFormatter,
     }
     if model in formatter_dict:
-        return formatter_dict[model](model=model_name)
+        # FewShotFormatter accepts additional prompt file parameters
+        if model == Models.FEW_SHOT:
+            return formatter_dict[model](model=model_name, **kwargs)
+        else:
+            return formatter_dict[model](model=model_name)
     raise NotImplementedError(f"no support for {model_name}")
