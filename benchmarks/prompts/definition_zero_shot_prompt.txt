@@ -1,4 +1,0 @@
-You are an expert in machine learning and formal language Isabelle/HOL. Given the following definition
-in LaTeX: {{informal}}, your task is to provide the formal code of this definition in Lean 4. In
-case that you need to import any necessary dependent theory files, you should not import any fake
-theory files.

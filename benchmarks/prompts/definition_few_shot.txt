@@ -1,0 +1,74 @@
+You are an expert in machine learning and formal language Lean 4. Given the following definition
+in LaTeX: {{text}}, your task is to provide the formal code of this definition in Lean 4. In
+case that you need to import any necessary dependent theory files, you should not import any fake
+theory files.
+
+Below are examples showing the exact **style, level of detail, and interpretation** expected in the output.
+
+Each example has the format:
+
+### Example N
+**Informal:** <informal text>
+**Formal:**
+<Lean code>
+
+------------------------------------
+
+### Example 1
+
+**Informal:** **Definition 2.20**: Let \((X,\prec)\) be a pre-ordered space and \(x\in X\). A point \(y\in X\) is called **successor of \(x\)** if \(x\prec y\), \(x\neq y\), and if there is no \(z\in X\setminus\{{x,y\}}\) such that \(x\prec z\prec y\). A point \(y\in X\) is called **predecessor of \(x\)** if \(y\prec x\), \(x\neq y\), and if there is no \(z\in X\setminus\{{x,y\}}\) such that \(y\prec z\prec x\).
+**Formal:**
+variable {{X : Type}} [Preorder X]
+
+def successor_of (x y : X) : Prop :=
+  x ≤ y ∧ x ≠ y ∧ ¬∃ z : X, z ≠ x ∧ z ≠ y ∧ x ≤ z ∧ z ≤ y
+
+def predecessor_of (x y : X) : Prop :=
+  y ≤ x ∧ y ≠ x ∧ ¬∃ z : X, z ≠ x ∧ z ≠ y ∧ y ≤ z ∧ z ≤ x
+
+### Example 2
+**Informal:** **Definition 2.55**: A left ideal \(L\) of a ring \(R\) is called a **minimal left ideal** if \(L\neq 0\) and \(L\) does not properly contain a nonzero left ideal of \(R\).
+**Formal:**
+/-- A nonzero left ideal L of a ring R is minimal if it contains no proper nonzero left ideals. -/
+def minimalLeftIdeal (R : Type*) [Ring R] (L : Submodule R R) : Prop :=
+  L ≠ ⊥ ∧ ∀ (I : Submodule R R), I ≤ L → I ≠ ⊥ → I = L
+
+### Example 3
+**Informal:** **Definition 12.8**.: A ring is _semilocal_ if it has only finitely many maximal ideals.
+**Formal:**
+def semilocal (R : Type*) [Ring R] : Prop :=
+  Finite {{ id : Ideal R // Ideal.IsMaximal id }}
+
+### Example 4
+**Informal:** **Definition 1.25**: **-- Invertible Fractional Ideals**
+
+In an integral domain \(D\) a fractional \(D\)-ideal \(I\) is called invertible if
+
+\[I^{{-1}}I=D,\]
+
+where \(I^{{-1}}\), given in Theorem 1.15, is called the _inverse_ of \(I\).
+**Formal:**
+variable {{D : Type*}} [CommRing D] [IsDomain D]
+variable {{K : Type*}} [Field K] [Algebra D K] [IsFractionRing D K]
+
+def InvertibleFractionalIdeal (I : FractionalIdeal (nonZeroDivisors D) K) : Prop :=
+  I⁻¹ * I = (1 : FractionalIdeal (nonZeroDivisors D) K)
+
+### Example 5
+**Informal:** **(12) Definition.** Let \(X_{{1}}\), \(X_{{2}}\),... be independent positive variables such that \(X_{{2}}\), \(X_{{3}}\),... have the same distribution. Let
+
+\[T_{{0}}=0,\quad T_{{n}}=\sum_{{1}}^{{n}}X_{{i}},\quad N^{{\rm d}}(t)=\max\{{n:T_{{n}}\leq t\}}.\]
+
+Then \(N^{{\rm d}}\) is called a **delayed** (or **modified**) **renewal process**.
+**Formal:**
+open MeasureTheory ProbabilityTheory
+
+structure DelayedRenewalProcess (Ω : Type*) [MeasurableSpace Ω] (μ : Measure Ω) [IsProbabilityMeasure μ] where
+  (X : ℕ → Ω → ℝ)
+  (measurable_X : ∀ n, Measurable (X n))
+  (pos : ∀ n ω, 0 < X n ω)
+  (indep : iIndepFun (fun n => X n) μ)
+  (ident_tail : ∀ n ≥ 2, IdentDistrib (X 2) (X n) μ μ)
+  (T : ℕ → Ω → ℝ := fun n ω => ∑ i ∈ Finset.range n, X (i + 1) ω)
+  (Nd : ℝ → Ω → ℕ := fun t ω => sSup {{ n : ℕ | T n ω ≤ t }})
+

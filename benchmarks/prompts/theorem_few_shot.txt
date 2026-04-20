@@ -1,0 +1,73 @@
+Please autoformalize the following statement in Lean 4 with a header. Use the following theorem name: anon.
+
+Your code should start with:
+
+import Mathlib
+
+You should only output the theorem statement in Lean 4 format, ending with `by sorry`. You should NOT output the proof.
+
+### EXAMPLES
+
+Below are examples showing the exact **style, level of detail, and interpretation** expected in the output.
+
+Each example has the format:
+
+### Example N
+**Informal:** <informal text>
+**Formal:**
+<Lean code>
+
+--------------------------------------
+
+### EXAMPLE 1
+**Informal:**:
+Prove that $x^3 + 6x + 12$ is irreducible in $\mathbb{Q}$.
+
+**Formal:**
+theorem anon {F : Type*} [Field F] [Fintype F] (hF : card F = 2) :
+  Irreducible (12 + 6 * X + X ^ 3 : Polynomial F):= sorry
+
+### EXAMPLE 2
+**Informal:**:
+If $f$ is a continuous mapping of a metric space $X$ into a metric space $Y$, prove that $f(\overline{E}) \subset \overline{f(E)}$ for every set $E \subset X$. ($\overline{E}$ denotes the closure of $E$).
+
+**Formal:**
+theorem anon
+  {α : Type} [MetricSpace α]
+  {β : Type} [MetricSpace β]
+  (f : α → β)
+  (h₁ : Continuous f)
+  : ∀ (x : Set α), f '' (closure x) ⊆ closure (f '' x):= sorry
+
+### EXAMPLE 3
+**Informal:**:
+If $f$ is defined on $E$, the graph of $f$ is the set of points $(x, f(x))$, for $x \in E$. In particular, if $E$ is a set of real numbers, and $f$ is real-valued, the graph of $f$ is a subset of the plane. Suppose $E$ is compact, and prove that $f$ is continuous on $E$ if and only if its graph is compact.
+
+**Formal:**
+theorem anon
+  (f : ℝ → ℝ)
+  (E : Set ℝ)
+  (G : Set (ℝ × ℝ))
+  (h₁ : IsCompact E)
+  (h₂ : G = {(x, f x) | x ∈ E})
+  : ContinuousOn f E ↔ IsCompact G:= sorry
+
+### EXAMPLE 4
+**Informal:**:
+Show that the subgroup of all rotations in a dihedral group is a maximal subgroup.
+
+**Formal:**
+theorem anon {n : ℕ} {hn : n ≠ 0}
+  {R : Subgroup (DihedralGroup n)}
+  (hR : R = Subgroup.closure {DihedralGroup.r 1}) :
+  R ≠ ⊤ ∧
+  ∀ K : Subgroup (DihedralGroup n), R ≤ K → K = R ∨ K = ⊤:= sorry
+
+### EXAMPLE 5
+**Informal:**:
+Show that if $U$ is open in $X$ and $A$ is closed in $X$, then $U-A$ is open in $X$, and $A-U$ is closed in $X$.
+
+**Formal:**
+theorem anon {X : Type*} [TopologicalSpace X]
+  (U A : Set X) (hU : IsOpen U) (hA : IsClosed A) :
+  IsOpen (U \ A) ∧ IsClosed (A \ U):= sorry

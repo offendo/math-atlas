@@ -1,0 +1,9 @@
+Please autoformalize the following problem in Lean 4 with a header. Use the following theorem name: anon.
+
+{text}
+
+Your code should start with:
+
+import Mathlib
+
+You should only output the theorem statement in Lean 4 format, ending with `by sorry`. You should NOT output the proof.

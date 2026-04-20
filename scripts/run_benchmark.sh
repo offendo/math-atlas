@@ -19,20 +19,22 @@ export SPLIT_NAME="statements"
 export CUDA_VISIBLE_DEVICES=1
 export CONTEXT=0
 
-for MODEL in $ATLAS_L; do
-	echo "Running $SPLITS with model $MODEL"
-	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.context=${CONTEXT}.json" | sed 's/\//./g');
-	python -m benchmarks.run_benchmark \
-		 $SPLITS \
-		--model=$MODEL\
-		--dataset="offendo/math-atlas" \
-		--output $OUTPUT_PATH \
-		--data-parallel-size=1 \
-		--max-tokens=10000 \
-		--temperature=0.2 \
-		--top-p=0.95 \
-		--seed=1234 \
-		--n-context-tokens=$CONTEXT \
-		--model-url="http://localhost:8002/v1"
-	echo "...done!"
+for MODEL in $GPT120 $GPT20; do
+	for PROMPT in "benchmarks/prompts/theorem_zero_shot.txt" "benchmarks/prompts/theorem_zero_shot_tuned_prompt.txt" "benchmarks/prompts/theorem_few_shot.txt"; do
+		export PROMPT_NAME=$(basename ${PROMPT} .txt)
+		echo "Running $SPLITS with model $MODEL with $PROMPT_NAME"
+		export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.prompt=${PROMPT}.json" | sed 's/\//./g');
+		python -m benchmarks.run_benchmark \
+			 $SPLITS \
+			--model=$MODEL\
+			--dataset="offendo/math-atlas" \
+			--output $OUTPUT_PATH \
+			--data-parallel-size=1 \
+			--max-tokens=10000 \
+			--temperature=0.2 \
+			--top-p=0.95 \
+			--seed=1234 \
+			--prompt-file=${PROMPT}
+		echo "...done!";
+	done;
 done
