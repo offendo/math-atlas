@@ -151,6 +151,7 @@ def run(
 
     model_formatter = get_formatter(model, **formatter_kwargs)
     ds = ds.map(lambda batch: model_formatter.format_batch(batch, id2tokens=id2tokens, id2text=id2text, n_tokens=n_context_tokens), batched=True)
+    print(ds[0]['prompt'])
 
     raw_outputs, parsed_outputs = generate(
         ds["prompt"],

@@ -11,19 +11,19 @@ export QWEN3_8="Qwen/Qwen3-8B"
 export QWEN3_4="Qwen/Qwen3-4B-Thinking-2507"
 export HERALD="FrenzyMath/Herald_translator"
 
-export SPLITS="theorem exercise example"
-export SPLIT_NAME="statements"
-# export SPLITS="definition"
-# export SPLIT_NAME="definitions"
+# export SPLITS="theorem exercise example"
+# export SPLIT_NAME="statements"
+export SPLITS="definition"
+export SPLIT_NAME="definitions"
 
 export CUDA_VISIBLE_DEVICES=1
 export CONTEXT=0
 
 for MODEL in $GPT120 $GPT20; do
-	for PROMPT in "benchmarks/prompts/theorem_zero_shot.txt" "benchmarks/prompts/theorem_zero_shot_tuned_prompt.txt" "benchmarks/prompts/theorem_few_shot.txt"; do
-		export PROMPT_NAME=$(basename ${PROMPT} .txt)
+	for PROMPT in "$(pwd)/benchmarks/prompts/theorem_few_shot.txt" "$(pwd)/benchmarks/prompts/theorem_few_shot_tuned_prompt.txt"; do
+		export PROMPT_NAME=$(basename ${PROMPT} | sed 's/.txt//g')
 		echo "Running $SPLITS with model $MODEL with $PROMPT_NAME"
-		export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.prompt=${PROMPT}.json" | sed 's/\//./g');
+		export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.prompt=${PROMPT_NAME}.json" | sed 's/\//./g');
 		python -m benchmarks.run_benchmark \
 			 $SPLITS \
 			--model=$MODEL\
@@ -38,3 +38,19 @@ for MODEL in $GPT120 $GPT20; do
 		echo "...done!";
 	done;
 done
+
+# for MODEL in $ATLAS_Q; do
+# 	echo "Running $SPLITS with model $MODEL with $PROMPT_NAME"
+# 	export OUTPUT_PATH=outputs/$(echo "${MODEL,,}.${SPLIT_NAME}.json" | sed 's/\//./g');
+# 	python -m benchmarks.run_benchmark \
+# 		 $SPLITS \
+# 		--model=$MODEL\
+# 		--dataset="offendo/math-atlas" \
+# 		--output $OUTPUT_PATH \
+# 		--data-parallel-size=1 \
+# 		--max-tokens=10000 \
+# 		--temperature=0.0 \
+# 		--seed=1234 \
+# 		--model-url="http://localhost:8002/v1"
+# 	echo "...done!";
+# done

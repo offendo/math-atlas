@@ -149,7 +149,7 @@ def run(
 
     # evaluate score
     predictions = df['result'].apply(lambda x: x in {'Correct', 'aligned', True})
-    golds = df['label']
+    golds = df['label'].apply(lambda x: x in {'Correct', 'aligned', True})
 
     report = classification_report(golds, predictions)
     print(report)

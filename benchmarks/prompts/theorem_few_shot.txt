@@ -1,5 +1,7 @@
 Please autoformalize the following statement in Lean 4 with a header. Use the following theorem name: anon.
 
+{text}
+
 Your code should start with:
 
 import Mathlib
@@ -21,20 +23,20 @@ Each example has the format:
 
 ### EXAMPLE 1
 **Informal:**:
-Prove that $x^3 + 6x + 12$ is irreducible in $\mathbb{Q}$.
+Prove that $x^3 + 6x + 12$ is irreducible in $\mathbb{{Q}}$.
 
 **Formal:**
-theorem anon {F : Type*} [Field F] [Fintype F] (hF : card F = 2) :
+theorem anon {{F : Type*}} [Field F] [Fintype F] (hF : card F = 2) :
   Irreducible (12 + 6 * X + X ^ 3 : Polynomial F):= sorry
 
 ### EXAMPLE 2
 **Informal:**:
-If $f$ is a continuous mapping of a metric space $X$ into a metric space $Y$, prove that $f(\overline{E}) \subset \overline{f(E)}$ for every set $E \subset X$. ($\overline{E}$ denotes the closure of $E$).
+If $f$ is a continuous mapping of a metric space $X$ into a metric space $Y$, prove that $f(\overline{{E}}) \subset \overline{{f(E)}}$ for every set $E \subset X$. ($\overline{{E}}$ denotes the closure of $E$).
 
 **Formal:**
 theorem anon
-  {α : Type} [MetricSpace α]
-  {β : Type} [MetricSpace β]
+  {{α : Type}} [MetricSpace α]
+  {{β : Type}} [MetricSpace β]
   (f : α → β)
   (h₁ : Continuous f)
   : ∀ (x : Set α), f '' (closure x) ⊆ closure (f '' x):= sorry
@@ -49,7 +51,7 @@ theorem anon
   (E : Set ℝ)
   (G : Set (ℝ × ℝ))
   (h₁ : IsCompact E)
-  (h₂ : G = {(x, f x) | x ∈ E})
+  (h₂ : G = {{(x, f x) | x ∈ E}})
   : ContinuousOn f E ↔ IsCompact G:= sorry
 
 ### EXAMPLE 4
@@ -57,9 +59,9 @@ theorem anon
 Show that the subgroup of all rotations in a dihedral group is a maximal subgroup.
 
 **Formal:**
-theorem anon {n : ℕ} {hn : n ≠ 0}
-  {R : Subgroup (DihedralGroup n)}
-  (hR : R = Subgroup.closure {DihedralGroup.r 1}) :
+theorem anon {{n : ℕ}} {{hn : n ≠ 0}}
+  {{R : Subgroup (DihedralGroup n)}}
+  (hR : R = Subgroup.closure {{DihedralGroup.r 1}}) :
   R ≠ ⊤ ∧
   ∀ K : Subgroup (DihedralGroup n), R ≤ K → K = R ∨ K = ⊤:= sorry
 
@@ -68,6 +70,8 @@ theorem anon {n : ℕ} {hn : n ≠ 0}
 Show that if $U$ is open in $X$ and $A$ is closed in $X$, then $U-A$ is open in $X$, and $A-U$ is closed in $X$.
 
 **Formal:**
-theorem anon {X : Type*} [TopologicalSpace X]
+theorem anon {{X : Type*}} [TopologicalSpace X]
   (U A : Set X) (hU : IsOpen U) (hA : IsClosed A) :
   IsOpen (U \ A) ∧ IsClosed (A \ U):= sorry
+
+

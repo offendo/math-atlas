@@ -2,9 +2,6 @@ import os
 import re
 from .base import BaseFormatter, ItemType, Output
 
-PROMPT_DIR = "benchmarks/prompts"
-
-
 class FewShotFormatter(BaseFormatter):
     """Generic formatter for models that use a few‑shot prompt template.
 
@@ -16,20 +13,10 @@ class FewShotFormatter(BaseFormatter):
     def __init__(
         self,
         model: str,
-        prompt_dir: str | None = None,
-        prompt_file: str | None = None,
-        theorem_prompt: str = "few_shot_theorem.txt",
-        definition_prompt: str = "few_shot_definition.txt",
-        theorem_prompt_context: str = "few_shot_theorem_with_context.txt",
-        definition_prompt_context: str = "few_shot_definition_with_context.txt",
+        prompt_file: str,
     ):
-        self.prompt_dir = prompt_dir or PROMPT_DIR
         self.model = model
         self.prompt_file = prompt_file
-        self.theorem_prompt = theorem_prompt
-        self.definition_prompt = definition_prompt
-        self.theorem_prompt_context = theorem_prompt_context
-        self.definition_prompt_context = definition_prompt_context
 
         if "qwen" in self.model.lower():
             self.parse_output = self.parse_output_qwen
@@ -52,16 +39,13 @@ class FewShotFormatter(BaseFormatter):
         **kwargs,
     ) -> list[dict[str, str]]:
         # If a forced prompt_file is provided, use it regardless of item_type or context
-        if self.prompt_file is not None:
-            path = os.path.join(self.prompt_dir, self.prompt_file)
-            with open(path, "r") as f:
-                template = f.read()
-            
-            messages = [
-                {"role": "system", "content": "You are an expert at Lean 4 and Mathematics."},
-                {"role": "user", "content": template.format(context="", text=informal)},
-            ]
-            return messages
+        with open(self.prompt_file, "r") as f:
+            template = f.read()
+        
+        messages = [
+            {"role": "system", "content": "You are an expert at Lean 4 and Mathematics."},
+            {"role": "user", "content": template.format(text=informal)},
+        ]
 
         # Otherwise, use the old behavior: select based on item_type and context
         if n_tokens:
@@ -70,41 +54,9 @@ class FewShotFormatter(BaseFormatter):
             assert file_id is not None, "file_id must be provided if n_tokens is specified"
             all_text = id2text[file_id]
             context = all_text[max(0, start_index-(n_tokens * 4)):start_index]
-
-            # choose template file according to the item type
-            match item_type:
-                case ItemType.THEOREM | ItemType.EXAMPLE | ItemType.EXERCISE:
-                    filename = self.theorem_prompt_context
-                case ItemType.DEFINITION:
-                    filename = self.definition_prompt_context
-                case ItemType.PROOF:
-                    raise NotImplementedError("No few-shot template for PROOF yet.")
-
-            path = os.path.join(self.prompt_dir, filename)
-            with open(path, "r") as f:
-                template = f.read()
-
             messages = [
                 {"role": "system", "content": "You are an expert at Lean 4 and Mathematics."},
                 {"role": "user", "content": template.format(context=context, text=informal)},
-            ]
-        else:
-            # choose template file according to the item type
-            match item_type:
-                case ItemType.THEOREM | ItemType.EXAMPLE | ItemType.EXERCISE:
-                    filename = self.theorem_prompt
-                case ItemType.DEFINITION:
-                    filename = self.definition_prompt
-                case ItemType.PROOF:
-                    raise NotImplementedError("No few-shot template for PROOF yet.")
-
-            path = os.path.join(self.prompt_dir, filename)
-            with open(path, "r") as f:
-                template = f.read()
-
-            messages = [
-                {"role": "system", "content": "You are an expert at Lean 4 and Mathematics."},
-                {"role": "user", "content": template.format(text=informal)},
             ]
         return messages
 
