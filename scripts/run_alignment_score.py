@@ -39,7 +39,7 @@ SCHEMA = {
 }
 
 
-def try_loads(x):
+def parse(x):
     try:
         return json.loads(x)
     except Exception as e:
@@ -205,10 +205,11 @@ def run(
         # Add to dataframe
         df.loc[passing.index, "alignment_output"] = raw_outputs
         df['alignment_output'].fillna(None)
+        df['aligned'] = df.alignment_output.apply(lambda x: parse(x)['result'])
 
         print("Alignment score distribution:")
-        print(df.alignment_output.apply(lambda x: try_loads(x)['result']).value_counts(normalize=True))
-        print(df.alignment_output.apply(lambda x: try_loads(x)['result']).value_counts())
+        print(df.aligned.value_counts(normalize=True))
+        print(df.aligned.value_counts())
 
         # Save results
         output_path.parent.mkdir(parents=True, exist_ok=True)

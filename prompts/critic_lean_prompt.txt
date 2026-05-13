@@ -58,7 +58,7 @@ Return exactly one JSON object:
 		3. Comparative Verification: [...]
 		4. Conclusion: [...]
 		5. Accuracy Confirmation: [match confirmation or list of discrepancies...]",
-	"result": "[Correct/Incorrect]"
+	"result": "[aligned/misaligned]"
 }}
 ```
 

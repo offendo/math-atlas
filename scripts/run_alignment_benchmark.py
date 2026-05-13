@@ -69,16 +69,21 @@ def make_prompt(informal, formal, prompt):
         ]
 
 
-def try_json_loads(s):
+def try_parse(s):
     try:
         if '</think>' in s:
             thinking, text = s.split('</think>')
         else:
             text = s
             thinking = None
-        out = json.loads(text)
-        out.update({'error': None, 'thinking': thinking})
-        return out
+        if '<consistency>' in text:
+            text = text.split("<consistency>")[1].split("</consistency>")[0]
+            out = {'thinking': s, 'result': 'aligned' if text == 'Correct' else 'misaligned'}
+            return out
+        else:
+            out = json.loads(text)
+            out.update({'error': None, 'thinking': thinking})
+            return out
     except Exception as e:
         return {'error': e, 'result': "misaligned", "reasoning": s}
 
@@ -142,7 +147,7 @@ def run(
         pickle.dump(raw_outputs, f)
 
     # parse and save outputs
-    parsed_outputs = [try_json_loads(out.output[-1].content[0].text) for out in raw_outputs]
+    parsed_outputs = [try_parse(out.output[-1].content[0].text) for out in raw_outputs]
     df = pd.DataFrame.from_records(parsed_outputs)
     df['label'] = ds['label']
     df.to_json(output)
@@ -151,7 +156,7 @@ def run(
     predictions = df['result'].apply(lambda x: x in {'Correct', 'aligned', True})
     golds = df['label'].apply(lambda x: x in {'Correct', 'aligned', True})
 
-    report = classification_report(golds, predictions)
+    report = classification_report(golds, predictions, digits=3)
     print(report)
     with open(Path(output).with_suffix('.metrics'), "w") as f:
         f.write(str(report))

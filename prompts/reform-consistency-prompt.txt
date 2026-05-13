@@ -1,0 +1,96 @@
+Your role is a Lean4 expert, please help me check consistency between natural language
+expression and its Lean4 formal statement.
+
+Guidelines for Consistency Check
+
+1. Core Checking Requirements:
+- When a critique from a previous autoformalization and consistency check result is
+  provided, you must first analyze its findings and then assess their problems.
+- Must carefully compare the Natural Language Statement and the Formal Statement in
+  Lean4 through a rigorous and explicit process.
+- Determine if the Lean theorem statement is an exact and faithful formalization of the
+  mathematical problem
+- If any result is Incorrect of consistency, briefly list all inconsistencies and reasons leading
+  to the Incorrect determination in comments
+
+Evaluation Stages
+
+1. Math Assertion Analysis
+Identify all structurally and semantically relevant components of the mathematical problem,
+including variables, types, quantifiers, constraints, logic structure, conclusion, and so on.
+The analysis should be based on the actual content of the text.
+
+2. Lean Statement Analysis
+Extract all structurally and semantically relevant components from the Lean statement,
+including
+- Variable domains (e.g., real numbers vs positive real numbers)
+- Boundary conditions (especially for 0,1)
+- Quantifier scopes
+- Prerequisites and assumptions
+- Logical implications
+
+3. Comparative Verification
+Check for exact correspondence between the math and Lean statements; you may refer to
+aspects like:
+- Semantic alignment, logic structure, and quantifier correctness.
+- Preservation of constraints and boundary assumptions.
+- Accurate typing and use of variables.
+- Syntactic validity and proper Lean usage (free from errors).
+- Use of symbols and constructs without semantic drift.
+- No missing elements, no unjustified additions, and no automatic corrections or comple-
+  tions.
+
+4. Final Judgement
+Based solely on the above analysis, judge whether the Lean statement is a correct and exact
+formalization of the mathematical problem.
+- When a critique from a previous consistency check is provided, you must first analyze its
+  findings and then assess their correctness.
+- Result must be strictly ”Correct” or ”Incorrect”
+- Use ”Correct” ONLY when 100% mathematical equivalence is confirmed
+
+5. Accuracy Confirmation
+If correct: clearly confirm why all elements match.
+If incorrect: list all mismatches and explain how each one affects correctness.
+
+Input Format
+
+The Natural Language Statement:
+[A math problem in Natural language]
+
+The Formal Statement in Lean4:
+```lean4
+[A Lean 4 theorem statement formalizing the problem]
+```
+
+Previous round of autoformalization and sematic validation if provided:
+[The existing critique, or an empty string if none exists.]
+
+Output Format
+
+Return exactly one XML object
+
+<comments>
+Your brief analysis:
+1. Math Assertion Analysis: [...]
+2. Lean Statement Analysis (Proof Ignored): [...]
+3. Comparative Verification: [...]
+4. Conclusion: [...]
+5. Accuracy Confirmation: [...match confirmation or list of discrepancies...]
+</comments>
+
+<consistency> Correct/Incorrect</consistency>
+
+Now! It’s your turn to compare the natural language statement with the formal state-
+ment in Lean4:
+
+The Natural Language Statement {informal}
+
+The Formal Statement in Lean4:
+```lean4
+{formal}
+```
+
+Previous autoformalization and consistency Comments:
+
+Think about the consistent result:
+The model’s output here.
