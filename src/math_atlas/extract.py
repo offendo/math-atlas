@@ -27,6 +27,57 @@ def read_text(path: Path) -> str:
         return f.read()
 
 
+def checkpoint_path(output_path: Path) -> Path:
+    return output_path.parent / f"{output_path.stem}.ckpt.jsonl"
+
+
+class Checkpoint:
+    """Append-only JSONL log of completed work units, so a failed run can resume.
+
+    Each line is `{"key": <stable unit id>, "value": <result>}`. A partially written
+    final line (killed mid-flush) is dropped on load.
+    """
+
+    def __init__(self, path: Path | None):
+        self.path = path
+        self.done: dict[str, Any] = {}
+        if path is None:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    self.done[record["key"]] = record["value"]
+            if self.done:
+                print(f"Resuming from {path}: {len(self.done)} unit(s) already complete.")
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.done
+
+    def get(self, key: str) -> Any:
+        return self.done[key]
+
+    def record(self, key: str, value: Any) -> None:
+        self.done[key] = value
+        if self.path is None:
+            return
+        with open(self.path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"key": key, "value": value}) + "\n")
+            f.flush()
+
+    def clear(self) -> None:
+        self.done.clear()
+        if self.path is not None:
+            self.path.unlink(missing_ok=True)
+
+
 def format_prompt(block: str, system_prompt: str) -> list[dict[str, str]]:
     return [
         {"role": "system", "content": system_prompt},
@@ -125,10 +176,13 @@ async def run_dataframe_extraction(
     desc: str,
     schema: dict,
     result_key: str,
+    checkpoint: Checkpoint,
 ):
     semaphore = asyncio.Semaphore(SEM_LIMIT)
 
-    async def process_text(text: str):
+    async def process_text(key: str, text: str):
+        if key in checkpoint:
+            return checkpoint.get(key)
         async with semaphore:
             prompt = format_prompt(text, system_prompt)
             payload = await complete(
@@ -140,9 +194,11 @@ async def run_dataframe_extraction(
                 temperature=temperature,
                 seed=seed,
             )
-            return payload.get(result_key, [])
+            result = payload.get(result_key, [])
+            checkpoint.record(key, result)
+            return result
 
-    tasks = [process_text(row.text) for _, row in df.iterrows()]
+    tasks = [process_text(str(idx), row.text) for idx, row in df.iterrows()]
     return await tqdm.gather(*tasks, desc=desc)
 
 
@@ -156,6 +212,8 @@ async def run_items_async(
     max_gen_tokens: int,
     seed: int,
     server_url: str,
+    num_chunks: int | None = None,
+    overwrite: bool = False,
 ):
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,14 +225,29 @@ async def run_items_async(
     client = AsyncOpenAI(base_url=server_url)
 
     for file_path in input_dir.glob("*.mmd"):
+        output_file = output_dir / file_path.with_suffix(".json").name
+        if output_file.exists() and not overwrite:
+            print(f"Skipping {file_path.name}: {output_file} already exists (use --overwrite to redo).")
+            continue
+
         print(f"Processing {file_path.name}...")
 
         file_id = file_path.stem.replace("(mmd)", "").strip()
         chunks = split_file_into_token_chunks(file_path, max_block_size, model)
+        if num_chunks is not None:
+            chunks = chunks[:num_chunks]
+            print(f"--num-chunks={num_chunks}: processing {len(chunks)} chunk(s).")
+
+        checkpoint = Checkpoint(output_dir / f"{file_path.stem}.ckpt.jsonl")
+        if overwrite:
+            checkpoint.clear()
 
         all_records: list[dict[str, Any]] = []
 
         async def process_chunk(start: int, end: int, text: str):
+            key = f"{start}:{end}"
+            if key in checkpoint:
+                return checkpoint.get(key)
             prompt = format_prompt(text, system_prompt)
             payload = await complete(
                 client,
@@ -193,6 +266,7 @@ async def run_items_async(
                 else:
                     item.update({"item_start": None})
                 records.append(item)
+            checkpoint.record(key, records)
             return records
 
         tasks = [asyncio.create_task(process_chunk(start, end, text)) for start, end, text in chunks]
@@ -201,8 +275,10 @@ async def run_items_async(
             all_records.extend(records)
 
         df = pd.DataFrame(all_records)
-        output_file = output_dir / file_path.with_suffix(".json").name
         df.to_json(output_file)
+        if num_chunks is None:
+            # Only a full pass subsumes the checkpoint; a truncated debug run must keep it.
+            checkpoint.clear()
         print(f"Saved {len(all_records)} records to {output_file}")
 
 
@@ -215,11 +291,17 @@ async def run_names_async(
     max_gen_tokens: int,
     seed: int,
     server_url: str,
+    num_chunks: int | None = None,
 ):
     system_prompt = read_text(system_prompt_path)
 
     client = AsyncOpenAI(base_url=server_url)
     df = pd.read_json(input_path)
+    if num_chunks is not None:
+        df = df.head(num_chunks)
+        print(f"--num-chunks={num_chunks}: processing {len(df)} row(s).")
+
+    checkpoint = Checkpoint(checkpoint_path(output_path))
 
     all_results = await run_dataframe_extraction(
         df,
@@ -232,11 +314,14 @@ async def run_names_async(
         desc="Processing Entities",
         schema=NAMES_SCHEMA,
         result_key="names",
+        checkpoint=checkpoint,
     )
 
     df["names"] = all_results
     output_path.parent.mkdir(exist_ok=True, parents=True)
     df.to_json(output_path, orient="records", indent=4)
+    if num_chunks is None:
+        checkpoint.clear()
     print(f"Saved names to {output_path}")
 
 
@@ -251,6 +336,7 @@ async def run_references_async(
     server_url: str,
     n_examples: int | None,
     filter_references: bool,
+    num_chunks: int | None = None,
 ):
     system_prompt = read_text(system_prompt_path)
 
@@ -258,6 +344,11 @@ async def run_references_async(
     df = pd.read_json(input_path)
     if n_examples:
         df = df.sample(n_examples, random_state=seed)
+    if num_chunks is not None:
+        df = df.head(num_chunks)
+        print(f"--num-chunks={num_chunks}: processing {len(df)} row(s).")
+
+    checkpoint = Checkpoint(checkpoint_path(output_path))
 
     all_results = await run_dataframe_extraction(
         df,
@@ -270,6 +361,7 @@ async def run_references_async(
         desc="Processing Entities",
         schema=REFERENCES_SCHEMA,
         result_key="references",
+        checkpoint=checkpoint,
     )
 
     df["references"] = all_results
@@ -286,6 +378,8 @@ async def run_references_async(
         )
 
     df.to_json(output_path, orient="records", indent=4)
+    if num_chunks is None:
+        checkpoint.clear()
     print(f"Saved references to {output_path}")
 
 
@@ -300,6 +394,8 @@ def items(
     max_gen_tokens: int = typer.Option(16000, help="Maximum tokens to generate."),
     seed: int = typer.Option(1337, help="Random seed."),
     server_url: str = typer.Option(DEFAULT_SERVER_URL, help="vLLM server base URL."),
+    num_chunks: int = typer.Option(None, help="Debug: only process the first N chunks of each file."),
+    overwrite: bool = typer.Option(False, help="Reprocess files that already have an output, discarding checkpoints."),
 ):
     asyncio.run(
         run_items_async(
@@ -312,6 +408,8 @@ def items(
             max_gen_tokens=max_gen_tokens,
             seed=seed,
             server_url=server_url,
+            num_chunks=num_chunks,
+            overwrite=overwrite,
         )
     )
 
@@ -326,6 +424,7 @@ def names(
     max_gen_tokens: int = typer.Option(1000, help="Max tokens."),
     seed: int = typer.Option(1337, help="Random seed."),
     server_url: str = typer.Option(DEFAULT_SERVER_URL, help="vLLM URL."),
+    num_chunks: int = typer.Option(None, help="Debug: only process the first N rows of the input."),
 ):
     asyncio.run(
         run_names_async(
@@ -337,6 +436,7 @@ def names(
             max_gen_tokens=max_gen_tokens,
             seed=seed,
             server_url=server_url,
+            num_chunks=num_chunks,
         )
     )
 
@@ -353,6 +453,7 @@ def references(
     server_url: str = typer.Option(DEFAULT_SERVER_URL, help="vLLM URL."),
     n_examples: int = typer.Option(None, help="Number of examples to process."),
     filter_references: bool = typer.Option(False, help="Filter references"),
+    num_chunks: int = typer.Option(None, help="Debug: only process the first N rows of the input."),
 ):
     asyncio.run(
         run_references_async(
@@ -366,6 +467,7 @@ def references(
             server_url=server_url,
             n_examples=n_examples,
             filter_references=filter_references,
+            num_chunks=num_chunks,
         )
     )
 
