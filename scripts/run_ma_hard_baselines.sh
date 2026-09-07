@@ -190,6 +190,13 @@ start_server() {  # start_server <model_path> <served_name>
   log "$served is up after ${waited}s"
 }
 
+model_tag() {  # model_tag <model> -> filesystem-friendly run name
+  local name="${1##*/}"          # drop the HF org prefix
+  name="${name,,}"
+  name="${name//[^a-z0-9._-]/-}"
+  printf '%s' "$name"
+}
+
 run_iterative() {  # run_iterative <model> <url|""> <tag> <rounds> [extra args...]
   local model="$1" url="$2" tag="$3" rounds="$4"; shift 4
   local out="$OUT_DIR/iterative/${tag}.json"
@@ -284,10 +291,11 @@ log "Logs: $LOG_DIR"
 # --------------------------------------------------------------------------- #
 if [[ "$SKIP_API" != "1" ]]; then
   log "Launching $API_MODEL lane in the background"
+  API_TAG="$(model_tag "$API_MODEL")"
   (
-    run_iterative "$API_MODEL" "$API_URL" "$API_MODEL.ma-hard" "$MAX_ROUNDS" --concurrency "$API_CONCURRENCY"
+    run_iterative "$API_MODEL" "$API_URL" "$API_TAG.ma-hard" "$MAX_ROUNDS" --concurrency "$API_CONCURRENCY"
     if [[ "$RUN_CONTROL" == "1" ]]; then
-      run_iterative "$API_MODEL" "$API_URL" "$API_MODEL.control" 1 --concurrency "$API_CONCURRENCY"
+      run_iterative "$API_MODEL" "$API_URL" "$API_TAG.control" 1 --concurrency "$API_CONCURRENCY"
     fi
   ) &
   BG_PIDS+=($!)
@@ -295,7 +303,7 @@ fi
 
 if [[ "$SKIP_AGENT" != "1" ]]; then
   log "Launching Claude Code lane in the background"
-  AGENT_OUT="$OUT_DIR/agentic/claude-code-$CLAUDE_MODEL.ma-hard.json"
+  AGENT_OUT="$OUT_DIR/agentic/claude-code-$(model_tag "$CLAUDE_MODEL").ma-hard.json"
   (
     args=(); mapfile -t args < <(selection_args)
     extra=()
@@ -324,10 +332,11 @@ fi
 # GPU phase 1: gpt-oss-120b
 # --------------------------------------------------------------------------- #
 if [[ "$SKIP_GPT_OSS" != "1" ]]; then
+  GPT_OSS_TAG="$(model_tag "$GPT_OSS")"
   start_server "$GPT_OSS" "$GPT_OSS"
-  run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "gpt-oss-120b.ma-hard" "$MAX_ROUNDS"
+  run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "$GPT_OSS_TAG.ma-hard" "$MAX_ROUNDS"
   if [[ "$RUN_CONTROL" == "1" ]]; then
-    run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "gpt-oss-120b.control" 1
+    run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "$GPT_OSS_TAG.control" 1
   fi
   stop_server
 fi
@@ -336,10 +345,11 @@ fi
 # GPU phase 2: Qwen3-30B-A3B (MoE)
 # --------------------------------------------------------------------------- #
 if [[ "$SKIP_QWEN" != "1" ]]; then
+  QWEN_TAG="$(model_tag "$QWEN_MOE")"
   start_server "$QWEN_MOE" "$QWEN_MOE"
-  run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "qwen3-30b-a3b.ma-hard" "$MAX_ROUNDS"
+  run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "$QWEN_TAG.ma-hard" "$MAX_ROUNDS"
   if [[ "$RUN_CONTROL" == "1" ]]; then
-    run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "qwen3-30b-a3b.control" 1
+    run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "$QWEN_TAG.control" 1
   fi
   stop_server
 fi

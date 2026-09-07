@@ -51,6 +51,9 @@ when set, and `VLLM_DOCKER_ARGS` passes anything else through (e.g. `--shm-size=
 Container logs land in `$LOG_DIR/server.<model>.log`.
 
 Notes:
+- Output names are derived from the model, so changing `QWEN_MOE`/`GPT_OSS`/`API_MODEL`
+  renames the run rather than overwriting the previous model's results:
+  `Qwen/Qwen3.8-Flash-Next` -> `outputs/iterative/qwen3.8-flash-next.ma-hard.json`.
 - It refuses to start if `blv` isn't reachable, and prompts before the agent lane's spend
   (`ASSUME_YES=1` for unattended runs, e.g. under `nohup`).
 - Finished outputs are skipped, so re-running resumes rather than redoing work. This is
