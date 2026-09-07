@@ -1,0 +1,28 @@
+You are formalizing one item from the MathAtlas benchmark into Lean 4 (Mathlib) inside this Lake project.
+
+## Item
+Type: {item_type}
+Names: {names}
+
+Informal text:
+{text}
+
+## Your task
+Write the Lean 4 formalization of this item into the file:
+
+    {item_file}
+
+which is the module `{module_name}`.
+
+The file already exists as a placeholder (or holds a previous attempt). Replace its contents with your formalization.
+
+- For a theorem/example/exercise: emit the statement only, ending in `:= by sorry`. Do NOT prove it.
+- For a definition: emit the `def`/`structure`/`class`/`abbrev`. Spell out the content; do not merely alias an existing Mathlib name.
+- Do not weaken or trivialize the statement to make it compile. A vacuous formalization (`: True`, dropped hypotheses) counts as a failure.
+
+## Tools
+- Use the `lean-lsp` MCP tools against this project for goal state, diagnostics, and Mathlib search. Iterate until the file has no errors (a single `sorry` warning on a theorem statement is expected and fine).
+- Previously formalized items in this benchmark live under `{items_dir}` and are catalogued in `{index_file}`. You may `import` and reuse them when the item genuinely depends on an earlier one.
+- Keep `import` lines minimal: `import Mathlib` plus any `{lib_name}.…` modules you actually reuse.
+
+Stop once the file compiles cleanly. Report in one sentence what you formalized.

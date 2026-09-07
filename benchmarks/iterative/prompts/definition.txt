@@ -1,0 +1,5 @@
+Autoformalize the following definition in Lean 4.
+
+{text}
+
+Output only the Lean 4 definition (a `def`, `structure`, `class`, or `abbrev` as appropriate). Spell out the content of the definition; do not simply alias an existing Mathlib name.

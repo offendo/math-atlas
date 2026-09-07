@@ -1,0 +1,5 @@
+Your Lean 4 code did not compile. The compiler reported:
+
+{errors}
+
+Fix the code and output the complete corrected snippet in a single ```lean block. Keep the mathematical content faithful to the original text — do not weaken or trivialize the statement to make the error go away.

@@ -1,0 +1,5 @@
+Autoformalize the following {item_type} as a Lean 4 theorem statement named `anon`.
+
+{text}
+
+Output only the Lean 4 theorem statement, ending with `:= by sorry`. Do not output a proof.
