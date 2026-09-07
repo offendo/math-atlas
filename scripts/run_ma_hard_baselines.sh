@@ -46,7 +46,8 @@ GPT_OSS="${GPT_OSS:-openai/gpt-oss-120b}"
 QWEN_MOE="${QWEN_MOE:-Qwen/Qwen3.6-35B-A3B}"
 API_MODEL="${API_MODEL:-gpt-5-mini}"
 API_URL="${API_URL:-https://api.openai.com/v1}"
-API_CONCURRENCY="${API_CONCURRENCY:-10}"
+API_CONCURRENCY="${API_CONCURRENCY:-40}"          # in-flight requests to the API lane
+LOCAL_CONCURRENCY="${LOCAL_CONCURRENCY:-64}"     # in-flight requests to the local vLLM server
 
 # --- GPU serving (vLLM runs from the official docker image)
 DOCKER="${DOCKER:-docker}"
@@ -75,7 +76,7 @@ BUILD_PROJECT="${BUILD_PROJECT:-1}"
 # --- judging
 JUDGE_MODEL="${JUDGE_MODEL:-m-a-p/CriticLeanGPT-Qwen3-32B-RL}"
 JUDGE_MODEL_PATH="${JUDGE_MODEL_PATH:-$JUDGE_MODEL}"   # local path, if you have the weights on disk
-JUDGE_CONCURRENCY="${JUDGE_CONCURRENCY:-20}"
+JUDGE_CONCURRENCY="${JUDGE_CONCURRENCY:-64}"
 
 # --- phases
 SKIP_GPT_OSS="${SKIP_GPT_OSS:-0}"
@@ -344,9 +345,9 @@ fi
 if [[ "$SKIP_GPT_OSS" != "1" ]]; then
   GPT_OSS_TAG="$(model_tag "$GPT_OSS")"
   start_server "$GPT_OSS" "$GPT_OSS"
-  run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "$GPT_OSS_TAG.ma-hard" "$MAX_ROUNDS"
+  run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "$GPT_OSS_TAG.ma-hard" "$MAX_ROUNDS" --concurrency "$LOCAL_CONCURRENCY"
   if [[ "$RUN_CONTROL" == "1" ]]; then
-    run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "$GPT_OSS_TAG.control" 1
+    run_iterative "$GPT_OSS" "http://localhost:$PORT/v1" "$GPT_OSS_TAG.control" 1 --concurrency "$LOCAL_CONCURRENCY"
   fi
   stop_server
 fi
@@ -357,9 +358,9 @@ fi
 if [[ "$SKIP_QWEN" != "1" ]]; then
   QWEN_TAG="$(model_tag "$QWEN_MOE")"
   start_server "$QWEN_MOE" "$QWEN_MOE"
-  run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "$QWEN_TAG.ma-hard" "$MAX_ROUNDS"
+  run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "$QWEN_TAG.ma-hard" "$MAX_ROUNDS" --concurrency "$LOCAL_CONCURRENCY"
   if [[ "$RUN_CONTROL" == "1" ]]; then
-    run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "$QWEN_TAG.control" 1
+    run_iterative "$QWEN_MOE" "http://localhost:$PORT/v1" "$QWEN_TAG.control" 1 --concurrency "$LOCAL_CONCURRENCY"
   fi
   stop_server
 fi
