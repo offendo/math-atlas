@@ -11,7 +11,7 @@ Example (vLLM server):
         --model openai/gpt-oss-120b --model-url http://localhost:8000/v1 \
         --dataset offendo/math-atlas --filter split=hard \
         --max-rounds 5 --temperature 0.0 --retry-temperature 0.7 \
-        --judge-model criticleangpt-qwen3-32b-rl --judge-model-url http://localhost:8001/v1 \
+        --judge-model m-a-p/CriticLeanGPT-Qwen3-32B-RL --judge-model-url http://localhost:8001/v1 \
         --output outputs/iterative/gpt-oss-120b.ma-hard.json
 """
 
@@ -97,7 +97,7 @@ def run(
     redis_db: int = typer.Option(0, help="Redis DB for blv workers."),
     # --- judging ------------------------------------------------------------
     skip_judge: bool = typer.Option(False, help="Skip alignment judging (compile rate only)."),
-    judge_model: str = typer.Option("criticleangpt-qwen3-32b-rl", help="Alignment judge model name."),
+    judge_model: str = typer.Option("m-a-p/CriticLeanGPT-Qwen3-32B-RL", help="Alignment judge model name."),
     judge_model_url: str | None = typer.Option(None, help="OpenAI-compatible base URL for the judge."),
     judge_prompt_file: Path = typer.Option(
         common.REPO_ROOT / "prompts" / "critic_lean_prompt.txt", help="Judge prompt for statements."

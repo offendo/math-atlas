@@ -7,7 +7,7 @@ then point this at the output files once the judge is up.
 
     python benchmarks/judge_results.py \
         --input outputs/iterative/gpt-oss-120b.ma-hard.json \
-        --judge-model criticleangpt-qwen3-32b-rl \
+        --judge-model m-a-p/CriticLeanGPT-Qwen3-32B-RL \
         --judge-model-url http://localhost:8000/v1
 """
 
@@ -34,7 +34,7 @@ logger.setLevel(logging.INFO)
 def run(
     input: Path = typer.Option(..., dir_okay=False, help="Baseline output JSON (from B1 or A1)."),
     output: Path | None = typer.Option(None, dir_okay=False, help="Where to write; defaults to --input in place."),
-    judge_model: str = typer.Option("criticleangpt-qwen3-32b-rl", help="Alignment judge model name."),
+    judge_model: str = typer.Option("m-a-p/CriticLeanGPT-Qwen3-32B-RL", help="Alignment judge model name."),
     judge_model_url: str | None = typer.Option(None, help="OpenAI-compatible base URL for the judge."),
     judge_api_key: str = typer.Option("EMPTY", help="API key for the judge endpoint."),
     judge_prompt_file: Path = typer.Option(

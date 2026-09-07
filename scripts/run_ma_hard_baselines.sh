@@ -66,8 +66,8 @@ MATH_ATLAS_MCP="${MATH_ATLAS_MCP:-}"       # your MathAtlas MCP config, when rea
 BUILD_PROJECT="${BUILD_PROJECT:-1}"
 
 # --- judging
-JUDGE_MODEL="${JUDGE_MODEL:-criticleangpt-qwen3-32b-rl}"
-JUDGE_MODEL_PATH="${JUDGE_MODEL_PATH:-}"   # local path / HF id of the CriticLean checkpoint
+JUDGE_MODEL="${JUDGE_MODEL:-m-a-p/CriticLeanGPT-Qwen3-32B-RL}"
+JUDGE_MODEL_PATH="${JUDGE_MODEL_PATH:-$JUDGE_MODEL}"   # local path, if you have the weights on disk
 JUDGE_CONCURRENCY="${JUDGE_CONCURRENCY:-20}"
 
 # --- phases
@@ -216,10 +216,9 @@ if [[ "$SKIP_API" != "1" && -z "${OPENAI_API_KEY:-}" ]]; then
   SKIP_API=1
 fi
 
-if [[ "$SKIP_JUDGE" != "1" && -z "$JUDGE_MODEL_PATH" ]]; then
-  warn "JUDGE_MODEL_PATH unset -- generation will run but nothing will be judged."
-  warn "Set it and re-run (finished runs are skipped), or judge later with benchmarks/judge_results.py."
-  SKIP_JUDGE=1
+if [[ "$SKIP_JUDGE" == "1" ]]; then
+  warn "SKIP_JUDGE=1 -- generation will run but nothing will be judged."
+  warn "Judge later by re-running (finished runs are skipped), or with benchmarks/judge_results.py."
 fi
 
 # Spend confirmation: the agent lane is the expensive one.

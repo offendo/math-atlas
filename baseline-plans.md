@@ -41,7 +41,7 @@ cost/performance config in the iterative tier if it works.
 
 ### B3 — Sample-and-select (budget-matched to B1)
 n=8 at T=0.8, no feedback. Filter to compiling candidates, rank with your existing
-`criticleangpt-qwen3-32b-rl` judge, take top-1. Same total token budget as B1's 5 rounds so the
+`m-a-p/CriticLeanGPT-Qwen3-32B-RL` judge, take top-1. Same total token budget as B1's 5 rounds so the
 comparison is honest. Models: `gpt-oss-120b`, `claude-sonnet-5`.
 
 ### B4 — Retrieval-augmented repair

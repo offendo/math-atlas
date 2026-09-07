@@ -30,25 +30,23 @@ no GPU:  [ gpt-5-mini ........ ][ claude code ..... ]
 
 ```bash
 # smoke test first -- 6 items, real models, a few dollars
-N_EXAMPLES=6 SUBSET_FILE="" JUDGE_MODEL_PATH=/path/to/criticlean-32b \
-    scripts/run_ma_hard_baselines.sh
+N_EXAMPLES=6 SUBSET_FILE="" scripts/run_ma_hard_baselines.sh
 
 # full run
-SUBSET_FILE=ma_hard_uuids.json JUDGE_MODEL_PATH=/path/to/criticlean-32b \
-    MATH_ATLAS_MCP=./math-atlas-mcp.json \
+SUBSET_FILE=ma_hard_uuids.json MATH_ATLAS_MCP=./math-atlas-mcp.json \
     scripts/run_ma_hard_baselines.sh
 ```
 
 Everything is configured by environment variable (see the top of the script):
 `SUBSET_FILE`/`FILTER`/`N_EXAMPLES` for selection, `MAX_ROUNDS`, `GPUS`, `TP_SIZE`,
-`LEAN_PROJECT`, `MAX_BUDGET_USD`, `JUDGE_MODEL_PATH`, and `SKIP_GPT_OSS` / `SKIP_QWEN` /
+`LEAN_PROJECT`, `MAX_BUDGET_USD`, `JUDGE_MODEL` / `JUDGE_MODEL_PATH`, and `SKIP_GPT_OSS` / `SKIP_QWEN` /
 `SKIP_API` / `SKIP_AGENT` / `SKIP_JUDGE` to run one lane at a time.
 
 Notes:
 - It refuses to start if `blv` isn't reachable, and prompts before the agent lane's spend
   (`ASSUME_YES=1` for unattended runs, e.g. under `nohup`).
 - Finished outputs are skipped, so re-running resumes rather than redoing work. This is
-  also how you judge later: run once with `JUDGE_MODEL_PATH` unset, then again with it set.
+  also how you judge later: run once with `SKIP_JUDGE=1`, then again without it.
 - `RUN_CONTROL=1` (default) additionally runs each iterative model at `--max-rounds 1`,
   giving the single-pass control under identical scoring.
 - Summarize at any time without re-running:
@@ -58,7 +56,7 @@ Notes:
 
 1. **Lean verification** — `blv` needs Redis + `rq` workers running (`redis` on
    `localhost:6379` by default; override with `--redis-host/--redis-port/--redis-db`).
-2. **Alignment judge** — serve CriticLean-32B on an OpenAI-compatible endpoint and pass
+2. **Alignment judge** — serve `m-a-p/CriticLeanGPT-Qwen3-32B-RL` on an OpenAI-compatible endpoint and pass
    `--judge-model-url`. Skip with `--skip-judge` to get compile rate only.
 3. **A1 only** — a Lake project with Mathlib (`--project`), plus `uvx lean-lsp-mcp`
    on PATH and the `claude` CLI logged in.
@@ -89,7 +87,7 @@ python benchmarks/iterative/run_iterative.py \
     --model openai/gpt-oss-120b --model-url http://localhost:8000/v1 \
     --dataset offendo/math-atlas --filter split=hard \
     --max-rounds 5 --temperature 0.0 --retry-temperature 0.7 \
-    --judge-model criticleangpt-qwen3-32b-rl --judge-model-url http://localhost:8001/v1 \
+    --judge-model m-a-p/CriticLeanGPT-Qwen3-32B-RL --judge-model-url http://localhost:8001/v1 \
     --output outputs/iterative/gpt-oss-120b.ma-hard.json
 ```
 
@@ -110,7 +108,7 @@ python benchmarks/agentic/run_claude_code.py \
     --project ~/src/mathatlas-formalization --model sonnet \
     --mcp-config ./math-atlas-mcp.json \
     --max-budget-usd 0.75 --timeout 900 \
-    --judge-model criticleangpt-qwen3-32b-rl --judge-model-url http://localhost:8001/v1 \
+    --judge-model m-a-p/CriticLeanGPT-Qwen3-32B-RL --judge-model-url http://localhost:8001/v1 \
     --output outputs/agentic/claude-code-sonnet.ma-hard.json
 ```
 
@@ -141,7 +139,7 @@ different times. Run generation with `--skip-judge`, then:
 ```bash
 python benchmarks/judge_results.py \
     --input outputs/iterative/gpt-oss-120b.ma-hard.json \
-    --judge-model criticleangpt-qwen3-32b-rl --judge-model-url http://localhost:8000/v1
+    --judge-model m-a-p/CriticLeanGPT-Qwen3-32B-RL --judge-model-url http://localhost:8000/v1
 ```
 
 It attaches `aligned`/`alignment_output`, recomputes the metrics in place, and keeps the
