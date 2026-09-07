@@ -95,6 +95,20 @@ would fail it. `--inline-imports` (default) splices reused project-local modules
 the snippet before verification, so genuine reuse gets credit while the item is still
 checked against a plain Mathlib environment.
 
+## Judging separately
+
+Both runners judge inline, but with one GPU pair you serve the generator and the judge at
+different times. Run generation with `--skip-judge`, then:
+
+```bash
+python benchmarks/judge_results.py \
+    --input outputs/iterative/gpt-oss-120b.ma-hard.json \
+    --judge-model criticleangpt-qwen3-32b-rl --judge-model-url http://localhost:8000/v1
+```
+
+It attaches `aligned`/`alignment_output`, recomputes the metrics in place, and keeps the
+generation config recorded in `<output>.metrics.json`.
+
 ## Metrics
 
 Written to `<output>.metrics.json` alongside the run config:
