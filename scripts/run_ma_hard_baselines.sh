@@ -27,10 +27,9 @@ cd "$REPO_ROOT"
 read -r -a PYTHON <<< "${PYTHON:-uv run python}"
 read -r -a VLLM   <<< "${VLLM:-uv run vllm}"
 
-# --- item selection: SUBSET_FILE now; FILTER once MA-Hard is a column/split
-DATASET="${DATASET:-offendo/math-atlas}"
-SPLIT="${SPLIT:-train}"
-SUBSET_FILE="${SUBSET_FILE:-ma_hard_uuids.json}"
+# --- item selection: FILTER once MA-Hard is a column/split
+DATASET="${DATASET:-offendo/math-atlas-official}"
+SPLIT="${SPLIT:-hard}"
 FILTER="${FILTER:-}"                       # e.g. FILTER="split=hard"
 ITEM_TYPES="${ITEM_TYPES:-all}"            # space separated, or "all"
 N_EXAMPLES="${N_EXAMPLES:-}"               # set for a smoke test
@@ -58,7 +57,7 @@ MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"
 SERVER_BOOT_TIMEOUT="${SERVER_BOOT_TIMEOUT:-2400}"   # the 120b takes a while to load
 
 # --- agentic (A1)
-LEAN_PROJECT="${LEAN_PROJECT:-$HOME/src/mathatlas-formalization}"
+LEAN_PROJECT="${LEAN_PROJECT:-$HOME/src/MathProjectTemplate}"
 CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
 MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.75}"
 AGENT_TIMEOUT="${AGENT_TIMEOUT:-900}"
@@ -134,7 +133,6 @@ selection_args() {
   if [[ -n "$FILTER" ]]; then
     for f in $FILTER; do args+=(--filter "$f"); done
   fi
-  if [[ -n "$SUBSET_FILE" && -f "$SUBSET_FILE" ]]; then args+=(--subset-file "$SUBSET_FILE"); fi
   if [[ -n "$N_EXAMPLES" ]]; then args+=(--n-examples "$N_EXAMPLES"); fi
   printf '%s\n' "${args[@]}"
 }
@@ -196,11 +194,6 @@ run_iterative() {  # run_iterative <model> <url|""> <tag> <rounds> [extra args..
 # Preflight
 # --------------------------------------------------------------------------- #
 log "Preflight checks"
-
-if [[ -n "$SUBSET_FILE" && ! -f "$SUBSET_FILE" && -z "$FILTER" && -z "$N_EXAMPLES" ]]; then
-  warn "SUBSET_FILE '$SUBSET_FILE' not found and no FILTER set -- this would run the WHOLE dataset."
-  die  "Point SUBSET_FILE at your MA-Hard uuid list, set FILTER=split=hard, or set N_EXAMPLES."
-fi
 
 "${PYTHON[@]}" - <<'EOF' || die "blv is not reachable. Is the blv docker stack up?"
 import sys
