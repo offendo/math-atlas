@@ -77,6 +77,9 @@ BUILD_PROJECT="${BUILD_PROJECT:-1}"
 JUDGE_MODEL="${JUDGE_MODEL:-m-a-p/CriticLeanGPT-Qwen3-32B-RL}"
 JUDGE_MODEL_PATH="${JUDGE_MODEL_PATH:-$JUDGE_MODEL}"   # local path, if you have the weights on disk
 JUDGE_CONCURRENCY="${JUDGE_CONCURRENCY:-64}"
+# The judge has its own context limit: CriticLeanGPT-Qwen3-32B-RL maxes out at
+# 40960, so it cannot be served at the generator lanes' MAX_MODEL_LEN.
+JUDGE_MODEL_LEN="${JUDGE_MODEL_LEN:-40960}"
 
 # --- phases
 SKIP_GPT_OSS="${SKIP_GPT_OSS:-0}"
@@ -148,8 +151,8 @@ selection_args() {
   printf '%s\n' "${args[@]}"
 }
 
-start_server() {  # start_server <model_path> <served_name>
-  local model="$1" served="$2" waited=0
+start_server() {  # start_server <model_path> <served_name> [max_model_len]
+  local model="$1" served="$2" mml="${3:-$MAX_MODEL_LEN}" waited=0
   SERVER_LOG="$LOG_DIR/server.$(basename "$served").log"
   "$DOCKER" rm -f "$VLLM_CONTAINER" >/dev/null 2>&1 || true
 
@@ -172,7 +175,7 @@ start_server() {  # start_server <model_path> <served_name>
     "$VLLM_IMAGE" serve "$model"
     --served-model-name "$served"
     --tensor-parallel-size "$TP_SIZE"
-    --max-model-len "$MAX_MODEL_LEN"
+    --max-model-len "$mml"
     --port "$PORT"
   )
 
@@ -385,7 +388,7 @@ if [[ "$SKIP_JUDGE" != "1" ]]; then
   if (( ${#TO_JUDGE[@]} == 0 )); then
     warn "Nothing was produced; skipping the judge."
   else
-    start_server "$JUDGE_MODEL_PATH" "$JUDGE_MODEL"
+    start_server "$JUDGE_MODEL_PATH" "$JUDGE_MODEL" "$JUDGE_MODEL_LEN"
     for out in "${TO_JUDGE[@]}"; do
       if [[ ! -s "$out" ]]; then warn "No output at $out; nothing to judge."; continue; fi
       tag="$(basename "$out" .json)"
