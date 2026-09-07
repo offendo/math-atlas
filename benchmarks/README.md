@@ -16,6 +16,44 @@ Both runners write the same output shape as `single-pass/run_benchmark.py`
 `aligned`, ...), so `scripts/run_alignment_score.py` still works on their output if
 you want to re-judge separately.
 
+## Running everything at once
+
+`scripts/run_ma_hard_baselines.sh` runs all four lanes and writes `BASELINE-RESULTS.md`.
+The two GPU-hosted generators run sequentially on the H200 pair while the API model and
+the Claude Code agent (neither needs a GPU) run in parallel alongside them; judging comes
+last, once the GPUs are free for CriticLean.
+
+```
+GPUs:    [ gpt-oss-120b ][ Qwen3-30B-A3B ]          [ CriticLean judge ]
+no GPU:  [ gpt-5-mini ........ ][ claude code ..... ]
+```
+
+```bash
+# smoke test first -- 6 items, real models, a few dollars
+N_EXAMPLES=6 SUBSET_FILE="" JUDGE_MODEL_PATH=/path/to/criticlean-32b \
+    scripts/run_ma_hard_baselines.sh
+
+# full run
+SUBSET_FILE=ma_hard_uuids.json JUDGE_MODEL_PATH=/path/to/criticlean-32b \
+    MATH_ATLAS_MCP=./math-atlas-mcp.json \
+    scripts/run_ma_hard_baselines.sh
+```
+
+Everything is configured by environment variable (see the top of the script):
+`SUBSET_FILE`/`FILTER`/`N_EXAMPLES` for selection, `MAX_ROUNDS`, `GPUS`, `TP_SIZE`,
+`LEAN_PROJECT`, `MAX_BUDGET_USD`, `JUDGE_MODEL_PATH`, and `SKIP_GPT_OSS` / `SKIP_QWEN` /
+`SKIP_API` / `SKIP_AGENT` / `SKIP_JUDGE` to run one lane at a time.
+
+Notes:
+- It refuses to start if `blv` isn't reachable, and prompts before the agent lane's spend
+  (`ASSUME_YES=1` for unattended runs, e.g. under `nohup`).
+- Finished outputs are skipped, so re-running resumes rather than redoing work. This is
+  also how you judge later: run once with `JUDGE_MODEL_PATH` unset, then again with it set.
+- `RUN_CONTROL=1` (default) additionally runs each iterative model at `--max-rounds 1`,
+  giving the single-pass control under identical scoring.
+- Summarize at any time without re-running:
+  `python benchmarks/summarize_results.py outputs/iterative outputs/agentic --output BASELINE-RESULTS.md`
+
 ## Prerequisites
 
 1. **Lean verification** — `blv` needs Redis + `rq` workers running (`redis` on
