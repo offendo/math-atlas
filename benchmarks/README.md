@@ -133,7 +133,10 @@ python benchmarks/agentic/run_claude_code.py \
 - `--concurrency` > 1 runs agents in parallel over one shared project; expect `lake`
   lock contention and cross-item races. Default is 1.
 - `--reset-items` wipes previous item modules to measure the no-reuse condition.
-- `--resume` skips uuids already in `--output` and merges.
+- `--resume` skips uuids already in `--output` **and** in the checkpoint.
+- Each finished item is appended to `<output>.partial.jsonl` as it completes, so a crash
+  20 hours into a 698-item run costs one item rather than the whole run. The final JSON is
+  rebuilt from that checkpoint; delete it to start clean (a run without `--resume` does).
 
 ### The MathAtlas MCP
 

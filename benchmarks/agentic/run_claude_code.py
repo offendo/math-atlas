@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -112,6 +113,26 @@ def detect_lib_name(project: Path) -> str:
         if (project / path.stem).is_dir():
             return path.stem
     raise RuntimeError(f"Could not infer library name in `{project}`; pass --lib-name.")
+
+
+def read_partial(path: Path) -> list[dict[str, Any]]:
+    """Read the append-as-you-go checkpoint, skipping any half-written last line."""
+    if not Path(path).exists():
+        return []
+    records = []
+    for line in Path(path).read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            logger.warning("Skipping malformed checkpoint line in %s", path)
+    return records
+
+
+def load_partial_uuids(path: Path) -> set[str]:
+    return {str(r["uuid"]) for r in read_partial(path) if "uuid" in r}
 
 
 def module_name_for(uuid: str) -> str:
@@ -381,16 +402,24 @@ def run(
         items_dir.mkdir(parents=True, exist_ok=True)
         (proj / INDEX_FILE).unlink(missing_ok=True)
 
+    # Agent runs take hours; each finished item is appended here immediately so a
+    # crash costs one item rather than the whole run.
+    partial_path = Path(str(output).replace(".json", "")).with_suffix(".partial.jsonl")
+    partial_lock = threading.Lock()
+
     previous = pd.DataFrame()
     if resume:
-        done = common.load_done_uuids(output)
+        done = common.load_done_uuids(output) | load_partial_uuids(partial_path)
         if done:
-            previous = pd.read_json(output)
+            if Path(output).exists():
+                previous = pd.read_json(output)
             df = df[~df["uuid"].astype(str).isin(done)].reset_index(drop=True)
             logger.info("Resuming: %d already done, %d remaining", len(done), len(df))
             if len(df) == 0:
                 logger.info("Nothing left to run.")
                 return
+    elif partial_path.exists():
+        partial_path.unlink()
 
     index_path = write_index(proj, lib, df)
     scratch = proj / ".ma-hard"
@@ -436,7 +465,7 @@ def run(
             dry_run=dry_run,
         )
         code = inline_local_imports(proj, lib, item_file) if inline_imports else common.strip_imports(item_file.read_text())
-        return {
+        record = {
             "uuid": row["uuid"],
             "file_id": row["file_id"],
             "type": row["type"],
@@ -447,6 +476,10 @@ def run(
             "parsed_output": {"text": code},
             **{k: agent.get(k) for k in ("agent_error", "result", "cost_usd", "num_turns", "session_id", "duration_s")},
         }
+        with partial_lock:
+            with open(partial_path, "a") as f:
+                f.write(json.dumps(record) + "\n")
+        return record
 
     rows = [row for _, row in df.iterrows()]
     if dry_run:
@@ -459,7 +492,8 @@ def run(
     else:
         records = [process(r) for r in tqdm(rows, desc="Agents")]
 
-    out = pd.DataFrame.from_records(records)
+    del records  # the checkpoint file is the source of truth from here on
+    out = pd.DataFrame.from_records(read_partial(partial_path))
 
     results = common.verify_batch(
         out["code"].tolist(),
@@ -487,7 +521,9 @@ def run(
         )
 
     if not previous.empty:
-        out = pd.concat([previous, out], ignore_index=True)
+        fresh = set(out["uuid"].astype(str)) if not out.empty else set()
+        keep = previous[~previous["uuid"].astype(str).isin(fresh)]
+        out = pd.concat([keep, out], ignore_index=True) if not keep.empty else out
 
     metrics = common.summarize(out)
     common.print_metrics(metrics)
