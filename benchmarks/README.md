@@ -42,6 +42,14 @@ Everything is configured by environment variable (see the top of the script):
 `LEAN_PROJECT`, `MAX_BUDGET_USD`, `JUDGE_MODEL` / `JUDGE_MODEL_PATH`, and `SKIP_GPT_OSS` / `SKIP_QWEN` /
 `SKIP_API` / `SKIP_AGENT` / `SKIP_JUDGE` to run one lane at a time.
 
+The GPU-hosted models are served from the official vLLM docker image, one container at a
+time (`VLLM_IMAGE`, default `vllm/vllm-openai:latest`; `VLLM_CONTAINER`, default
+`ma-hard-vllm`). The container gets `--gpus '"device=$GPUS"'`, `--ipc=host`, port
+`$PORT` published, and `$HF_CACHE` (default `$HF_HOME`) mounted at
+`/root/.cache/huggingface` so weights are shared with the host. `HF_TOKEN` is forwarded
+when set, and `VLLM_DOCKER_ARGS` passes anything else through (e.g. `--shm-size=32g`).
+Container logs land in `$LOG_DIR/server.<model>.log`.
+
 Notes:
 - It refuses to start if `blv` isn't reachable, and prompts before the agent lane's spend
   (`ASSUME_YES=1` for unattended runs, e.g. under `nohup`).

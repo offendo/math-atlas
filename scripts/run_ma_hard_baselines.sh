@@ -25,7 +25,6 @@ cd "$REPO_ROOT"
 # Configuration (override with environment variables)
 # --------------------------------------------------------------------------- #
 read -r -a PYTHON <<< "${PYTHON:-uv run python}"
-read -r -a VLLM   <<< "${VLLM:-uv run vllm}"
 
 # --- item selection: FILTER once MA-Hard is a column/split
 DATASET="${DATASET:-offendo/math-atlas-official}"
@@ -44,12 +43,17 @@ MAX_TOKENS="${MAX_TOKENS:-8192}"
 RUN_CONTROL="${RUN_CONTROL:-1}"            # also run --max-rounds 1 single-pass control
 
 GPT_OSS="${GPT_OSS:-openai/gpt-oss-120b}"
-QWEN_MOE="${QWEN_MOE:-Qwen/Qwen3-30B-A3B-Thinking-2507}"
+QWEN_MOE="${QWEN_MOE:-Qwen/Qwen3.8-Flash-Next}"
 API_MODEL="${API_MODEL:-gpt-5-mini}"
 API_URL="${API_URL:-https://api.openai.com/v1}"
 API_CONCURRENCY="${API_CONCURRENCY:-10}"
 
-# --- GPU serving
+# --- GPU serving (vLLM runs from the official docker image)
+DOCKER="${DOCKER:-docker}"
+VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
+VLLM_CONTAINER="${VLLM_CONTAINER:-ma-hard-vllm}"
+VLLM_DOCKER_ARGS="${VLLM_DOCKER_ARGS:-}"             # extra docker args, e.g. --shm-size=32g
+HF_CACHE="${HF_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}}"
 GPUS="${GPUS:-1,2}"
 TP_SIZE="${TP_SIZE:-2}"
 PORT="${PORT:-8000}"
@@ -96,15 +100,18 @@ log()  { printf '\033[1;34m[%s]\033[0m %s\n' "$(date +%H:%M:%S)" "$*"; }
 warn() { printf '\033[1;33m[%s] WARN\033[0m %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 die()  { printf '\033[1;31m[%s] FATAL\033[0m %s\n' "$(date +%H:%M:%S)" "$*" >&2; exit 1; }
 
-SERVER_PID=""
+SERVER_LOG=""
+SERVER_UP=0
 BG_PIDS=()
 
 stop_server() {
-  [[ -z "$SERVER_PID" ]] && return 0
-  log "Stopping server (pid $SERVER_PID)"
-  kill -TERM -- "-$SERVER_PID" 2>/dev/null || kill -TERM "$SERVER_PID" 2>/dev/null || true
-  wait "$SERVER_PID" 2>/dev/null || true
-  SERVER_PID=""
+  [[ "$SERVER_UP" == "0" ]] && return 0
+  log "Stopping $VLLM_CONTAINER"
+  # Capture the container log before --rm takes it away.
+  [[ -n "$SERVER_LOG" ]] && "$DOCKER" logs "$VLLM_CONTAINER" >"$SERVER_LOG" 2>&1 || true
+  "$DOCKER" stop -t 30 "$VLLM_CONTAINER" >/dev/null 2>&1 || true
+  "$DOCKER" rm -f "$VLLM_CONTAINER" >/dev/null 2>&1 || true
+  SERVER_UP=0
   sleep 10   # let the GPUs drain before the next model loads
   return 0
 }
@@ -139,17 +146,42 @@ selection_args() {
 
 start_server() {  # start_server <model_path> <served_name>
   local model="$1" served="$2" waited=0
-  log "Serving $served on GPUs $GPUS (port $PORT)"
-  CUDA_VISIBLE_DEVICES="$GPUS" setsid "${VLLM[@]}" serve "$model" \
-      --served-model-name "$served" \
-      --tensor-parallel-size "$TP_SIZE" \
-      --max-model-len "$MAX_MODEL_LEN" \
-      --port "$PORT" >"$LOG_DIR/server.$(basename "$served").log" 2>&1 &
-  SERVER_PID=$!
+  SERVER_LOG="$LOG_DIR/server.$(basename "$served").log"
+  "$DOCKER" rm -f "$VLLM_CONTAINER" >/dev/null 2>&1 || true
+
+  # `--gpus '"device=1,2"'` is the documented form: docker needs the inner
+  # quotes so the comma is not read as an option separator.
+  local docker_args=(
+    run -d --rm --name "$VLLM_CONTAINER"
+    --gpus "\"device=$GPUS\""
+    --ipc=host                                  # TP needs a real /dev/shm
+    -p "$PORT:$PORT"
+    -v "$HF_CACHE:/root/.cache/huggingface"
+    -e "HF_HOME=/root/.cache/huggingface"
+    --entrypoint vllm                           # works whether or not the image already entrypoints `vllm serve`
+  )
+  if [[ -n "${HF_TOKEN:-}" ]]; then docker_args+=(-e "HF_TOKEN=$HF_TOKEN"); fi
+  if [[ -n "$VLLM_DOCKER_ARGS" ]]; then
+    local extra=(); read -r -a extra <<< "$VLLM_DOCKER_ARGS"; docker_args+=("${extra[@]}")
+  fi
+  docker_args+=(
+    "$VLLM_IMAGE" serve "$model"
+    --served-model-name "$served"
+    --tensor-parallel-size "$TP_SIZE"
+    --max-model-len "$MAX_MODEL_LEN"
+    --port "$PORT"
+  )
+
+  log "Serving $served in $VLLM_IMAGE on GPUs $GPUS (port $PORT)"
+  "$DOCKER" "${docker_args[@]}" >/dev/null || die "Could not start $VLLM_CONTAINER."
+  SERVER_UP=1
+
   until curl -sf "http://localhost:$PORT/health" >/dev/null 2>&1; do
-    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-      tail -30 "$LOG_DIR/server.$(basename "$served").log" >&2
-      die "Server for $served died during startup."
+    if ! "$DOCKER" ps --filter "name=^${VLLM_CONTAINER}$" --format '{{.Names}}' | grep -q .; then
+      "$DOCKER" logs "$VLLM_CONTAINER" >"$SERVER_LOG" 2>&1 || true
+      tail -30 "$SERVER_LOG" >&2 || true
+      SERVER_UP=0
+      die "Container for $served exited during startup (see $SERVER_LOG)."
     fi
     sleep 5; waited=$((waited + 5))
     if (( waited % 120 == 0 )); then log "  ...still loading $served (${waited}s)"; fi
@@ -203,6 +235,15 @@ out = common.verify_batch(["theorem preflight (n : Nat) : n = n := by sorry"], t
 assert out[0].get("verified"), out[0]
 print("blv OK")
 EOF
+
+if [[ "$SKIP_GPT_OSS" != "1" || "$SKIP_QWEN" != "1" || "$SKIP_JUDGE" != "1" ]]; then
+  command -v "$DOCKER" >/dev/null || die "'$DOCKER' not found on PATH; the vLLM lanes need it."
+  "$DOCKER" info >/dev/null 2>&1 || die "Cannot talk to the docker daemon."
+  if ! "$DOCKER" image inspect "$VLLM_IMAGE" >/dev/null 2>&1; then
+    warn "$VLLM_IMAGE is not present locally; docker will pull it on first use."
+  fi
+  if [[ ! -d "$HF_CACHE" ]]; then warn "HF_CACHE '$HF_CACHE' does not exist; weights will download into it."; fi
+fi
 
 if [[ "$SKIP_AGENT" != "1" ]]; then
   command -v claude >/dev/null || die "claude CLI not found on PATH."
