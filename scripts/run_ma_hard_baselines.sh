@@ -39,7 +39,7 @@ MAX_ROUNDS="${MAX_ROUNDS:-5}"
 TEMPERATURE="${TEMPERATURE:-0.0}"
 RETRY_TEMPERATURE="${RETRY_TEMPERATURE:-0.7}"
 TOP_P="${TOP_P:-0.95}"
-MAX_TOKENS="${MAX_TOKENS:-8192}"
+MAX_TOKENS="${MAX_TOKENS:-16384}"
 RUN_CONTROL="${RUN_CONTROL:-1}"            # also run --max-rounds 1 single-pass control
 
 GPT_OSS="${GPT_OSS:-openai/gpt-oss-120b}"
@@ -58,7 +58,7 @@ HF_CACHE="${HF_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}}"
 GPUS="${GPUS:-1,2}"
 TP_SIZE="${TP_SIZE:-2}"
 PORT="${PORT:-8000}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-65536}"
 SERVER_BOOT_TIMEOUT="${SERVER_BOOT_TIMEOUT:-2400}"   # the 120b takes a while to load
 
 # --- agentic (A1)
@@ -66,7 +66,7 @@ LEAN_PROJECT="${LEAN_PROJECT:-$HOME/src/MathProjectTemplate}"
 CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
 MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.50}"
 AGENT_TIMEOUT="${AGENT_TIMEOUT:-900}"
-AGENT_CONCURRENCY="${AGENT_CONCURRENCY:-10}"
+AGENT_CONCURRENCY="${AGENT_CONCURRENCY:-24}"
 MATHATLAS_PROJECT="${MATHATLAS_PROJECT:-$HOME/src/mathatlas-formalization}"   # provides the MathAtlas MCP
 MATHATLAS_DATA="${MATHATLAS_DATA:-}"       # dataset JSON; defaults to the project's data/
 MATHATLAS_TEXTBOOKS="${MATHATLAS_TEXTBOOKS:-}"   # .mmd dir; defaults to the project's data/
