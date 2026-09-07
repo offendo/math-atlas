@@ -125,15 +125,37 @@ python benchmarks/agentic/run_claude_code.py \
 
 - The project is created with `lake init <Name> math` if `--project` doesn't exist.
   `--no-build-project` skips the `lake exe cache get` + `lake build` warm-up.
-- `--mcp-config` is repeatable and merges into the generated lean-lsp config — this is
-  where the MathAtlas dependency/context MCP goes. `--strict-mcp-config` (default) keeps
-  ambient user-level MCP servers out of the run.
+- `--mathatlas-project ~/src/mathatlas-formalization` wires in the MathAtlas MCP (see
+  below). `--mcp-config` is repeatable for any further servers, and `--strict-mcp-config`
+  (default) keeps ambient user-level MCP servers out of the run.
 - Budget caps: `--max-budget-usd` per item and `--timeout` wall clock. **Report both
   with your numbers** — an uncapped agentic score isn't comparable to anything.
 - `--concurrency` > 1 runs agents in parallel over one shared project; expect `lake`
   lock contention and cross-item races. Default is 1.
 - `--reset-items` wipes previous item modules to measure the no-reuse condition.
 - `--resume` skips uuids already in `--output` and merges.
+
+### The MathAtlas MCP
+
+`benchmarks/agentic/mathatlas_mcp.py` is a thin wrapper over the read-only data layer in
+the formalization project (`atlas.mcp.mathatlas.data`), launched inside that project's
+environment. It exposes all six upstream tools — `mathatlas_get_item`, `get_context`,
+`get_dependencies`, `get_proofs`, `list_items`, `stats` — over the 71,064-item dataset.
+
+The one difference from upstream: **the mathlib grounding of the item under test is
+withheld.** `get_item` normally returns `mathlib_suggestion`, the Mathlib declaration the
+dataset already grounded that concept to (the first item in the dataset, "fractional
+ideal", resolves to `Mathlib.RingTheory.FractionalIdeal`). Handing that to an agent scored
+on formalizing the same item is answer leakage — compile rate rises for a reason unrelated
+to the model, and A1 stops being comparable to the single-pass control. Dependencies keep
+their grounding, so reuse of prerequisites still works.
+
+The item under test is baked into each item's generated MCP config (`MA_HARD_ITEM_UUID`)
+rather than inherited from the runner's environment, so the redaction cannot silently
+no-op and stays correct under `--concurrency > 1`.
+
+Point `--mathatlas-data` / `--mathatlas-textbooks` elsewhere to run against a different
+snapshot; by default the server resolves them from the project's own `data/`.
 
 ### Scoring under reuse
 

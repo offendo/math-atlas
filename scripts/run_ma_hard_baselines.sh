@@ -66,7 +66,10 @@ CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
 MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.75}"
 AGENT_TIMEOUT="${AGENT_TIMEOUT:-900}"
 AGENT_CONCURRENCY="${AGENT_CONCURRENCY:-1}"
-MATH_ATLAS_MCP="${MATH_ATLAS_MCP:-}"       # your MathAtlas MCP config, when ready
+MATHATLAS_PROJECT="${MATHATLAS_PROJECT:-$HOME/src/mathatlas-formalization}"   # provides the MathAtlas MCP
+MATHATLAS_DATA="${MATHATLAS_DATA:-}"       # dataset JSON; defaults to the project's data/
+MATHATLAS_TEXTBOOKS="${MATHATLAS_TEXTBOOKS:-}"   # .mmd dir; defaults to the project's data/
+MATH_ATLAS_MCP="${MATH_ATLAS_MCP:-}"       # any *extra* MCP config JSON to merge in
 BUILD_PROJECT="${BUILD_PROJECT:-1}"
 
 # --- judging
@@ -256,7 +259,11 @@ if [[ "$SKIP_AGENT" != "1" ]]; then
   command -v claude >/dev/null || die "claude CLI not found on PATH."
   command -v uvx    >/dev/null || warn "uvx not found; the lean-lsp MCP will fail to start."
   if [[ ! -d "$LEAN_PROJECT" ]]; then warn "LEAN_PROJECT '$LEAN_PROJECT' missing; it will be created with 'lake init'."; fi
-  if [[ -z "$MATH_ATLAS_MCP" ]]; then warn "MATH_ATLAS_MCP unset: the agent gets lean-lsp only, no dependency/context tools."; fi
+  if [[ -z "$MATHATLAS_PROJECT" ]]; then
+    warn "MATHATLAS_PROJECT unset: the agent gets lean-lsp only, no dependency/context tools."
+  elif [[ ! -d "$MATHATLAS_PROJECT" ]]; then
+    die "MATHATLAS_PROJECT '$MATHATLAS_PROJECT' does not exist; set it or clear it to run without the MathAtlas MCP."
+  fi
 fi
 
 if [[ "$SKIP_API" != "1" && -z "${OPENAI_API_KEY:-}" ]]; then
@@ -307,6 +314,9 @@ if [[ "$SKIP_AGENT" != "1" ]]; then
   (
     args=(); mapfile -t args < <(selection_args)
     extra=()
+    if [[ -n "$MATHATLAS_PROJECT" ]]; then extra+=(--mathatlas-project "$MATHATLAS_PROJECT"); fi
+    if [[ -n "$MATHATLAS_DATA" ]]; then extra+=(--mathatlas-data "$MATHATLAS_DATA"); fi
+    if [[ -n "$MATHATLAS_TEXTBOOKS" ]]; then extra+=(--mathatlas-textbooks "$MATHATLAS_TEXTBOOKS"); fi
     if [[ -n "$MATH_ATLAS_MCP" ]]; then extra+=(--mcp-config "$MATH_ATLAS_MCP"); fi
     if [[ "$BUILD_PROJECT" != "1" ]]; then extra+=(--no-build-project); fi
     if "${PYTHON[@]}" benchmarks/agentic/run_claude_code.py \

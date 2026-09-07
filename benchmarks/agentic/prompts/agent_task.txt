@@ -21,6 +21,7 @@ The file already exists as a placeholder (or holds a previous attempt). Replace 
 - Do not weaken or trivialize the statement to make it compile. A vacuous formalization (`: True`, dropped hypotheses) counts as a failure.
 
 ## Tools
+{mathatlas_hint}
 - Use the `lean-lsp` MCP tools against this project for goal state, diagnostics, and Mathlib search. Iterate until the file has no errors (a single `sorry` warning on a theorem statement is expected and fine).
 - Previously formalized items in this benchmark live under `{items_dir}` and are catalogued in `{index_file}`. You may `import` and reuse them when the item genuinely depends on an earlier one.
 - Keep `import` lines minimal: `import Mathlib` plus any `{lib_name}.…` modules you actually reuse.

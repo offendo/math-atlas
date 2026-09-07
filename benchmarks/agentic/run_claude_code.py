@@ -19,6 +19,7 @@ Example:
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -171,8 +172,24 @@ def inline_local_imports(project: Path, lib_name: str, path: Path, seen: set[Pat
 # --------------------------------------------------------------------------- #
 # Claude Code invocation
 # --------------------------------------------------------------------------- #
-def build_mcp_config(project: Path, lean_lsp_command: str, extra_configs: list[Path], scratch: Path) -> Path:
-    """Merge the lean-lsp server with any user-supplied MCP configs (e.g. the MathAtlas MCP)."""
+MATHATLAS_SERVER = Path(__file__).resolve().parent / "mathatlas_mcp.py"
+
+MATHATLAS_HINT = """- The `mathatlas` MCP tools cover this item's source dataset: `mathatlas_get_context`
+  (the textbook prose preceding it, plus its prior definitions), `mathatlas_get_dependencies`
+  (the concepts it references), `mathatlas_get_item` / `mathatlas_get_proofs` for any of those
+  by id. This item's id is `{entity_id}`. Reach for them when the informal text alone is
+  ambiguous about a symbol, a hypothesis, or a referenced concept."""
+
+
+def build_mcp_servers(
+    project: Path,
+    lean_lsp_command: str,
+    extra_configs: list[Path],
+    mathatlas_project: Path | None = None,
+    mathatlas_data: Path | None = None,
+    mathatlas_textbooks: Path | None = None,
+) -> dict[str, Any]:
+    """Assemble the MCP server table: lean-lsp, MathAtlas, and anything supplied."""
     argv = lean_lsp_command.split()
     servers: dict[str, Any] = {
         "lean-lsp": {
@@ -181,10 +198,38 @@ def build_mcp_config(project: Path, lean_lsp_command: str, extra_configs: list[P
             "env": {"LEAN_PROJECT_PATH": str(project)},
         }
     }
+    if mathatlas_project is not None:
+        # Runs the benchmark wrapper (mathatlas_mcp.py) inside the formalization
+        # project's environment, where the `atlas` data layer is installed.
+        env: dict[str, str] = {}
+        if mathatlas_data is not None:
+            env["MATHATLAS_DATA"] = str(Path(mathatlas_data).expanduser().resolve())
+        if mathatlas_textbooks is not None:
+            env["MATHATLAS_TEXTBOOKS"] = str(Path(mathatlas_textbooks).expanduser().resolve())
+        servers["mathatlas"] = {
+            "command": "uv",
+            "args": ["run", "--project", str(Path(mathatlas_project).expanduser().resolve()),
+                     "python", str(MATHATLAS_SERVER)],
+            "env": env,
+        }
     for cfg in extra_configs:
         data = json.loads(Path(cfg).read_text())
         servers.update(data.get("mcpServers", data))
-    path = scratch / "mcp-config.json"
+    return servers
+
+
+def write_mcp_config(servers: dict[str, Any], path: Path, item_uuid: str | None = None) -> Path:
+    """Write a per-item MCP config.
+
+    The item under test is baked into the MathAtlas server's `env` rather than
+    inherited from this process, so the redaction of that item's mathlib
+    grounding cannot silently no-op, and stays correct when agents run in
+    parallel.
+    """
+    servers = copy.deepcopy(servers)
+    if item_uuid and "mathatlas" in servers:
+        servers["mathatlas"].setdefault("env", {})["MA_HARD_ITEM_UUID"] = str(item_uuid)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"mcpServers": servers}, indent=2))
     return path
 
@@ -283,10 +328,16 @@ def run(
     claude_bin: str = typer.Option("claude", help="Path to the claude CLI."),
     model: str = typer.Option("sonnet", help="Model alias or full name (e.g. sonnet, opus, claude-opus-5)."),
     effort: str | None = typer.Option(None, help="Effort level (low, medium, high, xhigh, max)."),
-    mcp_config: list[Path] = typer.Option([], help="Extra MCP config JSON files (e.g. the MathAtlas MCP)."),
+    mcp_config: list[Path] = typer.Option([], help="Extra MCP config JSON files, merged in."),
+    mathatlas_project: Path | None = typer.Option(
+        None, help="Formalization project providing the MathAtlas MCP (e.g. ~/src/mathatlas-formalization)."
+    ),
+    mathatlas_data: Path | None = typer.Option(None, help="MathAtlas dataset JSON; defaults to the project's data/."),
+    mathatlas_textbooks: Path | None = typer.Option(None, help="Textbook .mmd dir; defaults to the project's data/."),
     lean_lsp_command: str = typer.Option("uvx lean-lsp-mcp", help="Command that starts the lean-lsp MCP server."),
     allowed_tools: str = typer.Option(
-        "Read,Write,Edit,Glob,Grep,Bash,mcp__lean-lsp", help="Tools the agent may use without prompting."
+        "Read,Write,Edit,Glob,Grep,Bash,mcp__lean-lsp,mcp__mathatlas",
+        help="Tools the agent may use without prompting.",
     ),
     strict_mcp: bool = typer.Option(True, help="Ignore MCP servers outside --mcp-config (reproducibility)."),
     max_budget_usd: float | None = typer.Option(0.75, help="Per-item spend cap. Report this with your numbers."),
@@ -344,7 +395,10 @@ def run(
     index_path = write_index(proj, lib, df)
     scratch = proj / ".ma-hard"
     scratch.mkdir(exist_ok=True)
-    merged_mcp = build_mcp_config(proj, lean_lsp_command, list(mcp_config), scratch)
+    mcp_servers = build_mcp_servers(
+        proj, lean_lsp_command, list(mcp_config), mathatlas_project, mathatlas_data, mathatlas_textbooks
+    )
+    logger.info("MCP servers: %s", ", ".join(sorted(mcp_servers)))
     template = prompt_file.read_text()
 
     if concurrency > 1:
@@ -356,6 +410,7 @@ def run(
         if not item_file.exists():
             item_file.write_text(f"import Mathlib\n\n-- {row['type']}: {row['uuid']}\n-- TODO: replace with the formalization\n")
         prompt = template.format(
+            mathatlas_hint=MATHATLAS_HINT.format(entity_id=row["uuid"]) if "mathatlas" in mcp_servers else "",
             text=row["text"],
             item_type=row["type"],
             names=", ".join(row["names"]) if row.get("names") is not None else "",
@@ -365,12 +420,13 @@ def run(
             index_file=str(index_path),
             lib_name=lib,
         )
+        item_mcp = write_mcp_config(mcp_servers, scratch / "mcp" / f"{mod}.json", row["uuid"])
         agent = run_agent(
             prompt=prompt,
             project=proj,
             claude_bin=claude_bin,
             model=model,
-            mcp_config=merged_mcp,
+            mcp_config=item_mcp,
             allowed_tools=allowed_tools,
             max_budget_usd=max_budget_usd,
             timeout=timeout,
@@ -447,7 +503,9 @@ def run(
         "project": str(proj),
         "lib_name": lib,
         "allowed_tools": allowed_tools,
+        "mcp_servers": sorted(mcp_servers),
         "mcp_config": [str(p) for p in mcp_config],
+        "mathatlas_project": str(mathatlas_project) if mathatlas_project else None,
         "lean_lsp_command": lean_lsp_command,
         "max_budget_usd": max_budget_usd,
         "timeout_s": timeout,
