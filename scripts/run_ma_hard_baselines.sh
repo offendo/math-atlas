@@ -43,7 +43,7 @@ MAX_TOKENS="${MAX_TOKENS:-8192}"
 RUN_CONTROL="${RUN_CONTROL:-1}"            # also run --max-rounds 1 single-pass control
 
 GPT_OSS="${GPT_OSS:-openai/gpt-oss-120b}"
-QWEN_MOE="${QWEN_MOE:-Qwen/Qwen3.8-Flash-Next}"
+QWEN_MOE="${QWEN_MOE:-Qwen/Qwen3.6-35B-A3B}"
 API_MODEL="${API_MODEL:-gpt-5-mini}"
 API_URL="${API_URL:-https://api.openai.com/v1}"
 API_CONCURRENCY="${API_CONCURRENCY:-10}"
@@ -63,9 +63,9 @@ SERVER_BOOT_TIMEOUT="${SERVER_BOOT_TIMEOUT:-2400}"   # the 120b takes a while to
 # --- agentic (A1)
 LEAN_PROJECT="${LEAN_PROJECT:-$HOME/src/MathProjectTemplate}"
 CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
-MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.75}"
+MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.50}"
 AGENT_TIMEOUT="${AGENT_TIMEOUT:-900}"
-AGENT_CONCURRENCY="${AGENT_CONCURRENCY:-1}"
+AGENT_CONCURRENCY="${AGENT_CONCURRENCY:-10}"
 MATHATLAS_PROJECT="${MATHATLAS_PROJECT:-$HOME/src/mathatlas-formalization}"   # provides the MathAtlas MCP
 MATHATLAS_DATA="${MATHATLAS_DATA:-}"       # dataset JSON; defaults to the project's data/
 MATHATLAS_TEXTBOOKS="${MATHATLAS_TEXTBOOKS:-}"   # .mmd dir; defaults to the project's data/
