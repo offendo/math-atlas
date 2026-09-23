@@ -224,9 +224,15 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
    the processed `.verified` file compiles (27.3% full set, matching the paper; 12.4% on
    MA-Hard). Any re-scoring must use processed files.
 5. **The ATLAS output file** (`outputs/xiaoyangliu-sjtu.atlas_translator_q.statements.json`)
-   starts with a record identical to ReForm's (same `<round>`-style reasoning and formal
-   statement). `slice_full_runs.py` writes `pairwise_identity.json` to settle whether the
-   paper's ATLAS row is actually ReForm output.
+   starts with a record that looks like ReForm's. After extraction, however, its code overlaps
+   ReForm's on **0/622** MA-Hard items, so it is not a copy. It is an *unprocessed* file (no
+   stored verdict): re-verified compile is 0.8% on MA-Hard, against 21.4% for the paper's
+   full-set ATLAS row. The processed ATLAS file the paper used is not in the repo; find it
+   before reporting ATLAS on MA-Hard.
+5b. **Duplicate gpt-oss outputs.** `criticlean/openai.gpt-oss-120b.statements.json` and
+   `criticlean/openai.gpt-oss-20b.statements.aligned.json` contain **byte-identical code on 622/622
+   MA-Hard items** (`outputs/iclr/sliced/pairwise_identity.json`). The "20b" judged file was most
+   likely produced by judging the 120b generations. Any paper row built from it is really gpt-oss-120b.
 6. **The graduate few-shot theorem examples are unfaithful** (see E6).
 7. **The Sep-6 A1 run used the MathAtlas MCP in only 14% of items** (see §1).
 8. **Agent checkpoint collision (fixed).** `run_claude_code.py` derived its checkpoint with
@@ -238,6 +244,14 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
 ---
 
 ## 5. Remaining gaps (not covered by this campaign)
+
+- **OpenAI credits ran out at 02:16 on Sep 23** (`insufficient_quota`).
+  - The gpt-5.2 *generation* runs had already finished (698/698 non-empty) and are valid.
+  - gpt-5.2 judge validation is valid for MA-Align only. Its ConsistencyCheck/CriticLeanBench rows
+    are call errors and are marked invalid in `report.md`.
+  - The final gpt-5.2 re-judging step (E3b third judge) preflights the quota and skips itself.
+  - **To finish it:** add credits, delete `outputs/iclr/judge-validation/gpt-5.2.*`, and re-run
+    `scripts/run_iclr_experiments.sh` (finished work is skipped).
 
 - **E3a needs humans.** The sheets are generated automatically, but two annotators (≈4 h each)
   must fill them before judge precision on agent outputs can be reported. Until then, the 29%
@@ -268,3 +282,50 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
 ## 6. Results
 
 *(Filled in from `outputs/iclr/analysis/*` as runs finish.)*
+
+### E1a — paper systems on MA-Hard, re-verified with blv v4.28.0 (compile only; judging pending)
+Re-verified compile % [stored verdict from the original pipeline], n = 622 statements or 76 definitions:
+ReForm 5.0 [5.0] · Goedel-8B 6.6 [6.6] · Goedel-32B 8.2 [13.7] · Kimina 12.2 [12.4] · Herald 3.4 [3.5] ·
+ATLAS 0.8 [unprocessed file, see §4] · gpt-oss-120b stmts: default 15.1, zero-shot 5.6, tuned-prompt 7.1 ·
+gpt-oss-120b defs: default 11.8, zero-shot 0.0, tuned-prompt 7.9, tuned-examples 2.6, context-300 6.6 ·
+gpt-oss-20b defs default 9.2. Stored and re-verified verdicts agree except for Goedel-32B, which
+loses 5.5 pp under Lean v4.28 (Mathlib renames). **The paper's best statement system on the full
+set (ReForm) compiles on only 5% of MA-Hard**, below Kimina (12%) and gpt-oss default (15%).
+
+### E4b — depth correctness and robustness (final; `outputs/iclr/depth/`)
+- Corrected (SCC) vs paper depth: Spearman ρ = 0.93, **64% of items change depth**, 252 items in
+  cycles (largest SCC: 182). The top-698 by corrected depth overlaps MA-Hard with Jaccard **0.40**.
+- 100 replicates per noise model, 9% of edges perturbed:
+
+  | noise | depth rank ρ vs clean (mean; 2.5%) | MA-Hard Jaccard (mean; 2.5%) |
+  |---|---|---|
+  | drop | 0.90; 0.86 | 0.32; 0.08 |
+  | rewire-backward | 0.81; 0.74 | 0.10; 0.01 |
+  | rewire (any, same book) | 0.71; 0.66 | 0.06; 0.01 |
+
+  **Depth ranks are fairly robust; MA-Hard membership is not.** MA-Hard should be redefined with
+  a noise-robust rule, or reported with this caveat.
+
+### E4a — confounds on the paper's full-set outputs (final; `outputs/iclr/analysis/confounds/`)
+Linear probability model of correct, per SD of depth, in pp (textbook FE = textbook fixed effects
+plus controls for mass, length, #refs, Mathlib, type; SEs clustered by textbook):
+
+| system (split, n) | correct % | pooled, corrected depth | textbook FE, corrected depth [95% CI] | textbook FE, paper depth | textbook FE under noise (mean [2.5, 97.5]) |
+|---|---|---|---|---|---|
+| ReForm 8B (stmts, 45,259) | 9.2 | −3.3 | **−4.6** [−6.3, −3.0] | −2.1 (p=3e-6) | −0.5 [−1.3, +0.2] |
+| Goedel 8B (stmts, 45,260) | 7.1 | −3.2 | **−3.3** [−4.7, −1.9] | −0.7 (n.s.) | −0.8 [−1.5, −0.3] |
+| gpt-oss-120b "tuned exs" file (defs, 12,913) | 15.3 | −6.2 | **−6.7** [−9.7, −3.8] | −2.0 (p=.007) | −1.3 [−2.5, −0.1] |
+| gpt-oss-120b default file (defs, 12,913) | 16.7 | −6.6 | **−6.1** [−8.9, −3.3] | −1.5 (n.s.) | −1.2 [−3.1, −0.0] |
+
+- **The depth effect survives textbook fixed effects** when depth is computed correctly. With the
+  paper's depth it is weaker (not significant for 2 of 4 systems). On noise-perturbed graphs it
+  shrinks by roughly 4×. So the claim "depth predicts failure beyond subfield" holds, with a
+  smaller and more noise-sensitive effect than Fig. 4 suggests.
+- **Mathlib (definitions): the effect survives stratification.** In-Mathlib 21–24% vs 12–13%
+  correct. CMH pooled OR = 1.51 / 1.56 (p ≈ 0) across 141 textbooks; FE model +4–5 pp. Present
+  "leakage" as one hypothesis. The confound check R1 asked for passes.
+- **Bookkeeping:** ReForm's full-set correctness recomputes to **9.2%** (the paper says 9.8%). The
+  gpt-oss definitions file named `definitions.aligned.json` gives **16.7%** (the paper's "+tuned
+  exs." headline), while the file named `…few_shot_tuned_examples` gives 15.3% (the paper's
+  "+tuned prompt" value). File names and paper rows are mismatched somewhere; fix the table
+  provenance.

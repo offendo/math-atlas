@@ -229,6 +229,8 @@ def run(
                 "majority_baseline", "parse_errors", "judge_call_errors")}})
     if vrows:
         vt = pd.DataFrame(vrows)
+        # A failed call defaults to "misaligned"; such rows measure the API, not the judge.
+        vt.insert(2, "valid", np.where(vt["judge_call_errors"] > 0, "NO (call errors)", "yes"))
         lines += ["## E0 -- judge validation", "",
                   vt.to_markdown(index=False, floatfmt=".3f"), ""]
 

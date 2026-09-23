@@ -348,6 +348,18 @@ for pid in "${BG[@]}"; do wait "$pid"; done
 BG=()
 
 # gpt-5.2 as a third judge (E3b), once every output is final.
+api_has_quota() {  # a 1-token call; false on insufficient_quota / any failure
+  "$PY" - "$API_MODEL" "$API_URL" <<'PYEOF' > /dev/null 2>&1
+import sys
+from openai import OpenAI
+OpenAI(base_url=sys.argv[2]).chat.completions.create(
+    model=sys.argv[1], messages=[{"role": "user", "content": "ok"}], max_completion_tokens=16)
+PYEOF
+}
+if [[ "$SKIP_API" != 1 ]] && ! api_has_quota; then
+  warn "E3b: $API_MODEL unreachable or out of credits; skipping gpt-5.2 re-judging (re-run later to resume)"
+  SKIP_API=1
+fi
 if [[ "$SKIP_API" != 1 ]]; then
   log "E3b: gpt-5.2 re-judging"
   for f in $(all_outputs); do
