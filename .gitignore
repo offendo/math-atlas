@@ -19,3 +19,9 @@ outputs/
 
 # other data
 data/
+paper/
+criticlean/
+ReForm/
+chromadb-ab/
+logs/
+.claude/
