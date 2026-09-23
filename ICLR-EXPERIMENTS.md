@@ -266,6 +266,26 @@ itself is improved. The campaign now produces raw generations only.
   on that directory. For multi-judge agreement (E3b), run `judge_all.sh` once per judge and pass
   the parent directory to `report.py --rejudge-dir`.
 
+### Raw generation: complete (Sep 23, 15:28)
+Every generation run is done, with no empty rows. The three agent arms (Sonnet, $0.75/item cap,
+v4.28.0 projects):
+
+| arm | compile | used any MathAtlas tool | called `get_dependencies` | mean turns | cost (list) | leak hits |
+|---|---|---|---|---|---|---|
+| `none` (lean-lsp only) | 95.8% | 0% | 0% | 7.0 | $101.3 | 0 |
+| `opt` (tools optional) | 98.4% | 22.5% | 5.3% | 7.3 | $101.6 | 0 |
+| `dep` (protocol, hook-enforced) | 97.3% | 100% | 100% | 9.8 | $133.1 | 2 (grep of the textbook source; benign) |
+
+**Judge (user decision): Qwen3.8-27B for everything; no proprietary judge.** Settings:
+`--judge-max-tokens 32000 --judge-concurrency 40 --judge-reasoning-effort medium`, production
+prompts. `scripts/judge_all.sh qwen http://localhost:8000/v1 qwen38-27b …` writes to
+`outputs/iclr/judged/qwen38-27b/`. Validation tag: `qwen38-27b-medium`. On MA-Align (from the
+user's earlier `qwen38-27b` run):
+- Definitions: bal. acc 0.87, κ 0.74. Significantly better than CriticLean (McNemar p<0.001) and
+  on par with gpt-5.2.
+- Statements: bal. acc 0.81, specificity 0.61. No better than CriticLean (0.59; p=0.66). It still
+  over-accepts about 40% of misaligned statements, so report the judge-adjusted column.
+
 ## 5. Remaining gaps (not covered by this campaign)
 
 - **OpenAI credits ran out at 02:16 on Sep 23** (`insufficient_quota`).
