@@ -122,9 +122,19 @@ def run(
     judge_structured: bool = typer.Option(True, help="Request JSON-schema structured judge output."),
     # --- output -------------------------------------------------------------
     output: Path = typer.Option(..., dir_okay=False, help="Output JSON path."),
+    fill_empty_from: Path | None = typer.Option(
+        None, help="Previous output of this same config: keep rows whose every round produced text, "
+        "regenerate only the rest (e.g. calls rejected by an account limit)."),
 ):
     """Run the compile-repair loop over MA-Hard."""
     df = common.load_items(dataset, split, item_type, filter, subset_file, n_examples, seed)
+    kept = pd.DataFrame()
+    if fill_empty_from is not None:
+        prev = pd.read_json(fill_empty_from)
+        complete = prev["rounds"].apply(lambda rs: bool(rs) and all(str(r.get("raw_output") or "").strip() for r in rs))
+        kept = prev[complete & prev["uuid"].isin(df["uuid"])].copy()
+        df = df[~df["uuid"].isin(kept["uuid"])].reset_index(drop=True)
+        logger.info("fill-empty: keeping %d complete rows from %s, regenerating %d", len(kept), fill_empty_from, len(df))
     system_prompt = system_prompt_file.read_text().strip()
     theorem_tmpl = theorem_prompt_file.read_text()
     definition_tmpl = definition_prompt_file.read_text()
@@ -219,6 +229,10 @@ def run(
         }
     )
 
+    if not kept.empty:
+        drop = [c for c in ("aligned", "alignment_output") if c in kept.columns]
+        out = pd.concat([kept.drop(columns=drop), out], ignore_index=True)
+
     if not skip_judge:
         common.judge_and_attach(
             out,
@@ -239,6 +253,9 @@ def run(
         "model": model,
         "model_url": model_url,
         "backend": backend,
+        "failed_generations": getattr(generator, "n_failed", None),
+        "filled_from": str(fill_empty_from) if fill_empty_from else None,
+        "n_kept_from_fill": int(len(kept)),
         "generation_cost_usd": getattr(generator, "total_cost_usd", None),
         "models_seen": sorted(getattr(generator, "models_seen", []) or []) or None,
         "dependency_context": dependency_context,

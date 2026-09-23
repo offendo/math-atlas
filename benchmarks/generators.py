@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any, Sequence
 
 logger = logging.getLogger("benchmarks.generators")
@@ -158,7 +159,7 @@ class ClaudeCLIGenerator(BaseGenerator):
         model: str,
         claude_bin: str = "claude",
         concurrency: int = 16,
-        timeout: int = 600,
+        timeout: int = 1200,
         max_retries: int = 3,
         workdir: str | None = None,
     ):
@@ -172,6 +173,8 @@ class ClaudeCLIGenerator(BaseGenerator):
         self.workdir = workdir or tempfile.mkdtemp(prefix="claude-cli-gen-")
         self.total_cost_usd = 0.0
         self.models_seen: set[str] = set()
+        self.n_failed = 0                       # calls that returned "" after all retries
+        self.max_limit_wait = 16 * 3600         # total seconds to wait out account limits per call
 
     @staticmethod
     def serialize(conversation: Conversation) -> tuple[str, str]:
@@ -190,6 +193,12 @@ class ClaudeCLIGenerator(BaseGenerator):
         import subprocess
         import time
 
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import common
+
         system, prompt = self.serialize(conversation)
         cmd = [
             self.claude_bin, "-p", "--model", self.model, "--output-format", "json",
@@ -197,20 +206,37 @@ class ClaudeCLIGenerator(BaseGenerator):
         ]
         if system:
             cmd += ["--system-prompt", system]
-        for attempt in range(1, self.max_retries + 1):
+        attempt, waited = 0, 0
+        while attempt < self.max_retries:
             try:
                 proc = subprocess.run(
                     cmd, input=prompt, capture_output=True, text=True, timeout=self.timeout, cwd=self.workdir
                 )
-                payload = json.loads(proc.stdout)
+                blob = (proc.stdout or "") + (proc.stderr or "")
+                payload = json.loads(proc.stdout) if proc.stdout.strip().startswith("{") else {}
+                errored = (not payload) or bool(payload.get("is_error"))
+                if errored and common.is_claude_limit(str(payload.get("result", "")) if payload else blob):
+                    # Account limit, not a model failure: wait for the reset, don't burn an attempt.
+                    wait = common.seconds_until_reset(str(payload.get("result", "")) or blob)
+                    if waited + wait > self.max_limit_wait:
+                        raise RuntimeError(f"gave up after waiting {waited}s for Claude limits to reset")
+                    logger.warning("Claude limit hit; sleeping %ds until reset", wait)
+                    time.sleep(wait)
+                    waited += wait
+                    continue
+                if not payload:
+                    raise RuntimeError(f"unparseable CLI output (rc={proc.returncode}): {blob[-300:]}")
                 if payload.get("is_error"):
                     raise RuntimeError(f"{payload.get('subtype')}: {str(payload.get('result'))[:200]}")
                 self.total_cost_usd += float(payload.get("total_cost_usd") or 0.0)
                 self.models_seen.update((payload.get("modelUsage") or {}).keys())
                 return payload.get("result") or ""
-            except Exception as e:  # rate limits, timeouts, malformed output
-                logger.warning("claude CLI call failed (attempt %d/%d): %s", attempt, self.max_retries, str(e)[:300])
+            except Exception as e:  # timeouts, malformed output, API errors
+                attempt += 1
+                msg = re.sub(r"Command '\[.*?\]'", "claude command", str(e), flags=re.DOTALL)
+                logger.warning("claude CLI call failed (attempt %d/%d): %s", attempt, self.max_retries, msg[:300])
                 time.sleep(20 * attempt)
+        self.n_failed += 1
         return ""
 
     def chat(self, conversations: Sequence[Conversation], temperature: float, seed: int | None = None) -> list[str]:

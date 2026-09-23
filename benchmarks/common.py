@@ -119,6 +119,43 @@ def load_uuid_list(path: Path) -> set[str]:
 
 
 # --------------------------------------------------------------------------- #
+# Claude subscription limits
+# --------------------------------------------------------------------------- #
+LIMIT_PATTERN = re.compile(r"(session|usage|weekly|rate) limit|hit your limit|limit reached", re.IGNORECASE)
+RESET_PATTERN = re.compile(r"resets\s+(\d{1,2})(?::(\d{2}))?\s*([ap]m)\s*\(([^)]+)\)", re.IGNORECASE)
+
+
+def is_claude_limit(text: str) -> bool:
+    return bool(text) and bool(LIMIT_PATTERN.search(text))
+
+
+def seconds_until_reset(text: str, default: int = 600, slack: int = 90) -> int:
+    """Parse "resets 2:40am (America/Los_Angeles)" into seconds to wait (plus slack).
+
+    A rejected call must not count as a formalization attempt: an item that
+    fails because the account is rate-limited would otherwise be scored as a
+    model failure (this happened to ~110 Sonnet items before this existed).
+    """
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+
+    m = RESET_PATTERN.search(text or "")
+    if not m:
+        return default
+    hour, minute, ampm, tz = int(m.group(1)) % 12, int(m.group(2) or 0), m.group(3).lower(), m.group(4)
+    hour += 12 if ampm == "pm" else 0
+    try:
+        zone = ZoneInfo(tz.strip())
+    except Exception:
+        return default
+    now = dt.datetime.now(zone)
+    reset = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if reset <= now:
+        reset += dt.timedelta(days=1)
+    return int((reset - now).total_seconds()) + slack
+
+
+# --------------------------------------------------------------------------- #
 # Lean extraction
 # --------------------------------------------------------------------------- #
 THINK_PATTERN = re.compile(r"<think>.*?</think>", flags=re.DOTALL)
