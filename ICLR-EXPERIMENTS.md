@@ -283,6 +283,29 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
 
 *(Filled in from `outputs/iclr/analysis/*` as runs finish.)*
 
+### E0 — judge validation, production judging path (final for CriticLean-32B and for gpt-5.2 on MA-Align)
+| judge | benchmark | paper acc | **acc** | balanced acc | sensitivity | specificity | κ | majority | parse err |
+|---|---|---|---|---|---|---|---|---|---|
+| CriticLean-32B | MA-Align defs (50/50) | 80.0 | **67.0** | 0.670 | 0.660 | 0.680 | 0.34 | 0.50 | 2 |
+| CriticLean-32B | MA-Align stmts (25/75) | 75.0 | **68.0** | 0.773 | 0.960 | **0.587** | 0.39 | 0.75 | 1 |
+| CriticLean-32B | ConsistencyCheck | 82.6 | 76.5 | 0.774 | 0.746 | 0.803 | 0.51 | 0.66 | 3 |
+| CriticLean-32B | CriticLeanBench | 86.4 | 82.0 | 0.820 | 0.764 | 0.876 | 0.64 | 0.50 | 18 |
+| gpt-5.2 | MA-Align defs | 86.0 | **79.0** | 0.790 | 0.740 | 0.840 | 0.58 | 0.50 | 0 |
+| gpt-5.2 | MA-Align stmts | 80.0 | **85.0** | 0.820 | 0.760 | 0.880 | 0.62 | 0.75 | 0 |
+| gpt-5.2 | ConsistencyCheck / CriticLeanBench | – | invalid | – | – | – | – | – | out of API credits |
+
+(Parse errors are counted as "misaligned", the production behaviour.)
+
+- **All four CriticLean-32B numbers in the paper are overstated.** MA-Align definitions drop from
+  80 to 67; statements drop to 68, *below* the 75% always-misaligned baseline.
+- **The production judge over-accepts statements:** sensitivity 0.96, specificity 0.59. Among
+  compiling statements, "faithful" is inflated, so statement correctness across the paper is an
+  overestimate. E3c's Rogan–Gladen column quantifies how much.
+- gpt-5.2 beats CriticLean on MA-Align (79/85 vs 67/68). The paper's qualitative conclusion ("judges
+  degrade on graduate math; a strong proprietary judge does better") survives, with different numbers.
+- κ for CriticLean on MA-Align is 0.34–0.39 ("fair"). Calling it "strongly correlated with human
+  judgment" (rebuttal) is not supportable.
+
 ### E1a — paper systems on MA-Hard, re-verified with blv v4.28.0 (compile only; judging pending)
 Re-verified compile % [stored verdict from the original pipeline], n = 622 statements or 76 definitions:
 ReForm 5.0 [5.0] · Goedel-8B 6.6 [6.6] · Goedel-32B 8.2 [13.7] · Kimina 12.2 [12.4] · Herald 3.4 [3.5] ·
