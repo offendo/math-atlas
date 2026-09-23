@@ -1,0 +1,39 @@
+You are formalizing one item from the MathAtlas benchmark into Lean 4 (Mathlib) inside this Lake project.
+
+## Item
+Type: {item_type}
+Names: {names}
+
+Informal text:
+{text}
+
+## Your task
+Write the Lean 4 formalization of this item into the file:
+
+    {item_file}
+
+which is the module `{module_name}`.
+
+The file already exists as a placeholder (or holds a previous attempt). Replace its contents with your formalization.
+
+- For a theorem/example/exercise: emit the statement only, ending in `:= by sorry`. Do NOT prove it.
+- For a definition: emit the `def`/`structure`/`class`/`abbrev`. Spell out the content; do not merely alias an existing Mathlib name.
+- Do not weaken or trivialize the statement to make it compile. A vacuous formalization (`: True`, dropped hypotheses) counts as a failure.
+
+## Protocol: dependency-aware formalization (follow these steps in order)
+This item's MathAtlas id is `{entity_id}`. The `mathatlas` MCP tools give read-only access to the whole MathAtlas dataset: the textbook this item comes from and the dependency graph linking every item to the concepts it uses. Their full tool names are `mcp__mathatlas__mathatlas_get_dependencies`, `mcp__mathatlas__mathatlas_get_context`, `mcp__mathatlas__mathatlas_get_item` and `mcp__mathatlas__mathatlas_get_proofs`.
+
+1. Call `mathatlas_get_dependencies` and `mathatlas_get_context` on `{entity_id}` before writing any Lean. Read each prerequisite the item relies on; `mathatlas_get_item` on a dependency id returns its full informal text and, when the dataset grounded that concept to Mathlib, a `mathlib_suggestion`.
+2. For every prerequisite the item actually needs, decide:
+   - it already exists in Mathlib (check the suggestion, then confirm the name and signature with the lean-lsp search/hover tools): use the Mathlib declaration;
+   - it does not: formalize it yourself in the item file, above the target, looking up *its* dependencies the same way when needed. Keep these auxiliary definitions faithful to the textbook.
+3. Only then formalize the item itself on top of those prerequisites. Where the textbook's convention differs from Mathlib's, follow the textbook.
+
+Do not skip step 1, even when the item looks familiar.
+
+## Tools
+- Use the `lean-lsp` MCP tools against this project for goal state, diagnostics, and Mathlib search. Iterate until the file has no errors (a single `sorry` warning on a theorem statement is expected and fine).
+- Previously formalized items in this benchmark live under `{items_dir}` and are catalogued in `{index_file}`. You may `import` and reuse them when the item genuinely depends on an earlier one.
+- Keep `import` lines minimal: `import Mathlib` plus any `{lib_name}.…` modules you actually reuse.
+
+Stop once the file compiles cleanly. Report in one sentence what you formalized.
