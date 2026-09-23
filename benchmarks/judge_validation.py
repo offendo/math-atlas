@@ -97,6 +97,7 @@ def run(
     judge_max_tokens: int = typer.Option(8192),
     judge_concurrency: int = typer.Option(32),
     judge_structured: bool = typer.Option(True, help="JSON-schema structured output (production setting)."),
+    judge_reasoning_effort: str | None = typer.Option(None, help="Reasoning effort for the judge"),
     n_examples: int | None = typer.Option(None, help="Subsample per benchmark (debugging)."),
 ):
     from datasets import load_dataset
@@ -119,6 +120,8 @@ def run(
             concurrency=judge_concurrency,
             api_key=judge_api_key,
             structured=judge_structured,
+            temperature=1.0,
+            reasoning_effort=judge_reasoning_effort,
         )
         gold = df["label"].map(to_bool).to_numpy()
         pred = np.array([j["result"] == "aligned" for j in judgements])

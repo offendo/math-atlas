@@ -333,6 +333,7 @@ def judge_alignment(
     concurrency: int = 20,
     api_key: str = "EMPTY",
     structured: bool = True,
+    reasoning_effort: str | None = None,
 ) -> list[dict[str, Any]]:
     """Score (informal, formal) pairs with the CriticLean judge."""
     from openai import AsyncOpenAI
@@ -348,6 +349,9 @@ def judge_alignment(
     kwargs: dict[str, Any] = {}
     if structured:
         kwargs["response_format"] = {"type": "json_schema", "json_schema": ALIGNMENT_SCHEMA}
+
+    if reasoning_effort is not None:
+        kwargs['reasoning_effort'] = reasoning_effort
 
     sampling = {"temperature": temperature, "top_p": top_p}
 
