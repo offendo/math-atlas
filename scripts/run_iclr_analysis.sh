@@ -51,6 +51,22 @@ echo "== E4a confounds (the paper's Fig. 3/4 systems, full set)"
   --system "gpt-oss-120b-default:definitions=$DATA_ROOT/criticlean/openai.gpt-oss-120b.definitions.aligned.json" \
   --depth "$OUT/depth/depth.rewire-backward.csv.gz" --output-dir "$A/confounds" > "$A/confounds.log" 2>&1
 
+echo "== Open-split table (R3.6), recomputed from per-item outputs"
+D="$DATA_ROOT"
+"$PY" benchmarks/analysis/open_split_table.py \
+  --system "ReForm 8B=$D/outputs/reform.statements.aligned.json" \
+  --system "Goedel 8B=$D/criticlean/goedel-lm.goedel-formalizer-v2-8b.statements.aligned.json" \
+  --system "Goedel 32B=$D/criticlean/goedel-lm.goedel-formalizer-v2-32b.statements.aligned.json" \
+  --system "Kimina 7B=$D/criticlean/ai-mo.kimina-autoformalizer-7b.statements.verified.json" \
+  --system "Herald 7B=$D/criticlean/frenzymath.herald_translator.statements.aligned.json" \
+  --system "gpt-oss-120b stmts (default)=$D/criticlean/openai.gpt-oss-120b.statements.json" \
+  --system "gpt-oss-120b stmts zero-shot=$D/criticlean/openai.gpt-oss-120b.statements.prompt=theorem_zero_shot.aligned.json" \
+  --system "gpt-oss-20b stmts (default)=$D/criticlean/openai.gpt-oss-20b.statements.aligned.json" \
+  --system "gpt-oss-120b defs (default)=$D/criticlean/openai.gpt-oss-120b.definitions.aligned.json" \
+  --system "gpt-oss-120b defs tuned exs=$D/criticlean/openai.gpt-oss-120b.definitions.prompt=definition_few_shot_tuned_examples.json" \
+  --system "gpt-oss-20b defs (default)=$D/criticlean/openai.gpt-oss-20b.definitions.aligned.json" \
+  --output "$A/open_split_table.md" > "$A/open_split_table.log" 2>&1
+
 echo "== E3a/E5b annotation sheets"
 ann=()
 for spec in "claude-code-sonnet.dep:agentic:50:25" "claude-code-sonnet.none:agentic:25:10" \

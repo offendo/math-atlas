@@ -241,8 +241,12 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
 - **MA-Align is still 100+100 items with no reported IAA.** E0 fixes the metric, not the
   sample size; the corrected-joint CIs are wide for this reason.
 - **Dependency extraction for R3-Q4** (smaller extractor models) is not run.
-- **Open-Split table (Table 5)** is not regenerated here: it needs the full-set outputs
-  restricted to `open-books.txt`. That is a small follow-up script, not an experiment.
+- ~~Open-Split table~~ → now `benchmarks/analysis/open_split_table.py` (run by
+  `run_iclr_analysis.sh`). Open = uuids in the public release (`offendo/math-atlas-official`
+  test + hard; `open-books.txt` titles do not match `file_id`s). Pilot: Kimina full-set row
+  reproduces the paper exactly (27.3/8.3/2.3), but the open subset is **~50% of items, not the
+  70% the paper states**, and its row (24.3/8.9/2.2) differs from paper Table 5 (27.1/8.1/2.2).
+  Which file backs each paper row is inferred from filenames — confirm the mapping.
 - **Proof formalization** remains out of scope.
 - **MA-Hard redefinition** (item 3 above) is analysed but not applied; changing the split is
   a paper decision.

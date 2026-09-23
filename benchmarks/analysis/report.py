@@ -162,6 +162,9 @@ def run_row(name: str, df: pd.DataFrame, cfg: dict, val: dict | None) -> dict:
         row["cost_total"] = float(df["cost_usd"].sum())
     elif cfg.get("generation_cost_usd"):
         row["cost_total"] = float(cfg["generation_cost_usd"])
+    if "agent_error" in df.columns:
+        row["budget_capped"] = float((df["agent_error"] == "error_max_budget_usd").mean())
+        row["agent_errors"] = float(df["agent_error"].notna().mean())
     if "num_turns" in df.columns and df["num_turns"].notna().any():
         row["mean_turns"] = float(df["num_turns"].mean())
     row["config"] = {k: cfg.get(k) for k in ("baseline", "model", "dependency_context", "max_rounds", "prompt_file",
@@ -243,6 +246,7 @@ def run(
             "degenerate %": fmt(r.get("degenerate")),
             "cost $": f"{r['cost_total']:.2f}" if r.get("cost_total") else "–",
             "turns": f"{r['mean_turns']:.1f}" if r.get("mean_turns") else "–",
+            "budget-capped %": fmt(r.get("budget_capped")) if "budget_capped" in r else "–",
         })
     lines += ["## Runs (joint = compiles AND judged faithful)", "",
               pd.DataFrame(table).to_markdown(index=False), "",

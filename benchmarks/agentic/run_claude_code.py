@@ -194,6 +194,19 @@ def inline_local_imports(project: Path, lib_name: str, path: Path, seen: set[Pat
 # Claude Code invocation
 # --------------------------------------------------------------------------- #
 MATHATLAS_SERVER = Path(__file__).resolve().parent / "mathatlas_mcp.py"
+REQUIRE_DEPS_HOOK = Path(__file__).resolve().parent / "hooks" / "require_dependencies.py"
+
+
+def write_require_deps_settings(path: Path) -> Path:
+    """Settings enabling the PreToolUse hook that blocks item writes until the agent
+    has called mathatlas_get_dependencies (the E2b `dep` arm)."""
+    settings = {"hooks": {"PreToolUse": [{
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [{"type": "command", "command": f"{sys.executable} {REQUIRE_DEPS_HOOK}"}],
+    }]}}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2))
+    return path
 
 MATHATLAS_HINT = """- The `mathatlas` MCP tools cover this item's source dataset: `mathatlas_get_context`
   (the textbook prose preceding it, plus its prior definitions), `mathatlas_get_dependencies`
@@ -268,6 +281,7 @@ def run_agent(
     strict_mcp: bool,
     extra_args: list[str],
     dry_run: bool,
+    settings_file: Path | None = None,
 ) -> dict[str, Any]:
     """One headless Claude Code session, scoped to the Lake project."""
     cmd = [
@@ -295,6 +309,8 @@ def run_agent(
         cmd += ["--max-budget-usd", str(max_budget_usd)]
     if effort:
         cmd += ["--effort", effort]
+    if settings_file is not None:
+        cmd += ["--settings", str(settings_file)]
     cmd += extra_args
 
     if dry_run:
@@ -366,6 +382,9 @@ def run(
     concurrency: int = typer.Option(1, help="Parallel agents. >1 risks lake lock contention and cross-item races."),
     prompt_file: Path = typer.Option(PROMPT_DIR / "agent_task.txt", help="Agent task template."),
     extra_arg: list[str] = typer.Option([], help="Extra raw args passed to the claude CLI; repeatable."),
+    require_dependencies: bool = typer.Option(
+        False, help="Hook-enforce the dependency protocol: block item writes until get_dependencies was called."
+    ),
     dry_run: bool = typer.Option(False, help="Print the claude command for the first item and exit."),
     # --- verification -------------------------------------------------------
     verify_timeout: int = typer.Option(60, help="Per-theorem REPL timeout (seconds)."),
@@ -404,7 +423,10 @@ def run(
 
     # Agent runs take hours; each finished item is appended here immediately so a
     # crash costs one item rather than the whole run.
-    partial_path = Path(str(output).replace(".json", "")).with_suffix(".partial.jsonl")
+    # `<stem>.partial.jsonl` next to the output. (Not `with_suffix`: for dotted run names
+    # like `claude-code-sonnet.dep.json` that collapses every arm onto one checkpoint.)
+    partial_path = Path(output).with_name(Path(output).stem + ".partial.jsonl")
+    partial_path.parent.mkdir(parents=True, exist_ok=True)
     partial_lock = threading.Lock()
 
     previous = pd.DataFrame()
@@ -429,6 +451,11 @@ def run(
     )
     logger.info("MCP servers: %s", ", ".join(sorted(mcp_servers)))
     template = prompt_file.read_text()
+    settings_file = None
+    if require_dependencies:
+        if "mathatlas" not in mcp_servers:
+            raise typer.BadParameter("--require-dependencies needs the MathAtlas MCP (--mathatlas-project).")
+        settings_file = write_require_deps_settings(scratch / "require_dependencies.settings.json")
     if "{entity_id}" in template and "mathatlas" not in mcp_servers:
         raise typer.BadParameter(f"`{prompt_file.name}` drives the MathAtlas tools; pass --mathatlas-project.")
 
@@ -466,6 +493,7 @@ def run(
             strict_mcp=strict_mcp,
             extra_args=list(extra_arg),
             dry_run=dry_run,
+            settings_file=settings_file,
         )
         code = inline_local_imports(proj, lib, item_file) if inline_imports else common.strip_imports(item_file.read_text())
         record = {
@@ -543,6 +571,7 @@ def run(
         "lib_name": lib,
         "allowed_tools": allowed_tools,
         "prompt_file": str(prompt_file),
+        "require_dependencies": require_dependencies,
         "mcp_servers": sorted(mcp_servers),
         "mcp_config": [str(p) for p in mcp_config],
         "mathatlas_project": str(mathatlas_project) if mathatlas_project else None,

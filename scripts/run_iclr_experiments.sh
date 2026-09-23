@@ -68,7 +68,7 @@ SERVER_BOOT_TIMEOUT="${SERVER_BOOT_TIMEOUT:-2400}"
 AGENT_ROOT="${AGENT_ROOT:-$HOME/src/ma-hard-iclr}"   # scripts/setup_agent_projects.sh <root> dep none opt
 MATHATLAS_PROJECT="${MATHATLAS_PROJECT:-$HOME/src/mathatlas-formalization}"
 AGENT_CONCURRENCY="${AGENT_CONCURRENCY:-24}"
-MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.50}"
+MAX_BUDGET_USD="${MAX_BUDGET_USD:-0.75}"   # Sep-6 used 0.50; the dependency protocol hit that cap on 2/3 smoke items
 AGENT_TIMEOUT="${AGENT_TIMEOUT:-900}"
 AGENT_ARMS="${AGENT_ARMS:-dep none opt}"
 
@@ -141,7 +141,7 @@ run_iter() {
   log "run $tag"
   if "$PY" benchmarks/iterative/run_iterative.py --model "$model" "${url_args[@]}" "${sel[@]}" \
         --temperature "$TEMPERATURE" --retry-temperature "$RETRY_TEMPERATURE" --top-p "$TOP_P" \
-        --max-tokens "$MAX_TOKENS" --skip-judge --output "$out" "$@" > "$LOG_DIR/$tag.log" 2>&1; then
+        --max-tokens "$MAX_TOKENS" --skip-judge --output "$out" "$@" > "$LOG_DIR/$tag.log" 2>&1 && [[ -s "$out" ]]; then
     log "done $tag"; echo "$out" >> "$GEN_MANIFEST"
   else
     warn "$tag FAILED (see $LOG_DIR/$tag.log)"; tail -5 "$LOG_DIR/$tag.log" >&2
@@ -155,7 +155,8 @@ run_agent() {
   local sel=(); mapfile -t sel < <(selection)
   local extra=()
   case "$arm" in
-    dep)  extra=(--mathatlas-project "$MATHATLAS_PROJECT" --prompt-file benchmarks/agentic/prompts/agent_task_dependency_aware.txt) ;;
+    dep)  extra=(--mathatlas-project "$MATHATLAS_PROJECT" --prompt-file benchmarks/agentic/prompts/agent_task_dependency_aware.txt
+                 --require-dependencies) ;;
     opt)  extra=(--mathatlas-project "$MATHATLAS_PROJECT") ;;
     none) extra=(--allowed-tools "Read,Write,Edit,Glob,Grep,Bash,mcp__lean-lsp") ;;
     *) die "unknown agent arm $arm" ;;
@@ -165,7 +166,7 @@ run_agent() {
   if "$PY" benchmarks/agentic/run_claude_code.py "${sel[@]}" --project "$AGENT_ROOT/$arm" --no-build-project \
         --model "$CLAUDE_MODEL" --max-budget-usd "$MAX_BUDGET_USD" --timeout "$AGENT_TIMEOUT" \
         --concurrency "$AGENT_CONCURRENCY" --resume --skip-judge --output "$out" "${extra[@]}" \
-        > "$LOG_DIR/agent-$arm.log" 2>&1; then
+        > "$LOG_DIR/agent-$arm.log" 2>&1 && [[ -s "$out" ]]; then
     log "done agent $arm"; echo "$out" >> "$GEN_MANIFEST"
   else
     warn "agent $arm FAILED (see $LOG_DIR/agent-$arm.log)"; tail -5 "$LOG_DIR/agent-$arm.log" >&2
@@ -353,4 +354,6 @@ if [[ "$SKIP_API" != 1 ]]; then
     judge_one "$f" "$OUT_DIR/rejudge/$API_MODEL/$(basename "$f")" "$API_MODEL" "$API_URL" "$OPENAI_API_KEY"
   done
 fi
-log "All lanes finished. Next: scripts/run_iclr_analysis.sh $OUT_DIR"
+log "All lanes finished; running analyses"
+REPS="${REPS:-100}" scripts/run_iclr_analysis.sh "$OUT_DIR" > "$LOG_DIR/analysis.log" 2>&1 || warn "analysis failed (see $LOG_DIR/analysis.log)"
+log "Done. Report: $OUT_DIR/analysis/report.md"

@@ -56,7 +56,10 @@ def audit_file(path: Path) -> dict:
         if tfile is None or not tfile.exists():
             missing += 1
         else:
-            for line in tfile.read_text().splitlines():
+            # main transcript plus any subagent transcripts (agents sometimes delegate tool calls)
+            sub = sorted((tfile.parent / tfile.stem / "subagents").glob("*.jsonl"))
+            lines = [l for f in [tfile, *sub] for l in f.read_text().splitlines()]
+            for line in lines:
                 try:
                     content = (json.loads(line).get("message") or {}).get("content")
                 except json.JSONDecodeError:
