@@ -109,15 +109,22 @@ is the headline. Outputs go to `outputs/iclr/<kind>/<run>.json` with `<run>.metr
     - gpt-oss-120b: all 5 modes, single-pass; plus K=5 × {none, both}.
     - Sonnet: {none, both, random}.
     - gpt-5.2: {none, both}.
-- **E2b, agent arms.** Same model (Sonnet), budget ($0.50/item), timeout (900 s) and
+- **E2b, agent arms.** Same model (Sonnet), budget (**$0.75/item**), timeout (900 s) and
   concurrency (24). Each arm gets its own fresh v4.28.0 project, so no arm can see another's item
-  files.
+  files. The budget is above Sep-6's $0.50 because the dependency protocol hit $0.50 on 2 of 3 smoke
+  items. The within-campaign `opt` re-run, not the Sep-6 run, is therefore the comparator.
 
   | Arm | MathAtlas MCP | Prompt |
   |---|---|---|
   | `none` | ✗ (lean-lsp only) | `agent_task.txt` |
   | `opt` | ✓ | `agent_task.txt` (tools optional: the Sep-6 condition, re-run on v4.28.0) |
-  | `dep` | ✓ | **`agent_task_dependency_aware.txt`**: must call `get_dependencies` + `get_context` first, ground each prerequisite in Mathlib or formalize it above the target, then formalize the item |
+  | `dep` | ✓ | **`agent_task_dependency_aware.txt`**: must call `get_dependencies` + `get_context` first, ground each prerequisite in Mathlib or formalize it above the target, then formalize the item. **Hook-enforced** (`--require-dependencies`) |
+
+  - With the prompt alone, 1 of 3 smoke agents skipped the protocol entirely. The `dep` arm
+    therefore runs a PreToolUse hook (`benchmarks/agentic/hooks/require_dependencies.py`) that
+    blocks Write/Edit of the item file until `get_dependencies` has been called. Calls made by a
+    subagent also count, since agents sometimes delegate the lookup. An agent can still write
+    through Bash or run out of budget first, so the audit below reports actual compliance.
 
   - `benchmarks/analysis/agent_tool_usage.py` audits every transcript: how often each arm
     *actually* used MathAtlas tools, and **leak hits** (any tool call touching the raw
@@ -222,6 +229,11 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
    paper's ATLAS row is actually ReForm output.
 6. **The graduate few-shot theorem examples are unfaithful** (see E6).
 7. **The Sep-6 A1 run used the MathAtlas MCP in only 14% of items** (see §1).
+8. **Agent checkpoint collision (fixed).** `run_claude_code.py` derived its checkpoint with
+   `with_suffix`, so `claude-code-sonnet.dep.json` / `.none.json` / `.opt.json` all shared
+   `claude-code-sonnet.partial.jsonl`. In the smoke test, the second arm "resumed" from the
+   first arm's checkpoint and silently produced nothing. It is fixed, and the orchestrator now
+   treats a run that exits without an output file as failed.
 
 ---
 
