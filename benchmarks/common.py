@@ -333,8 +333,9 @@ def judge_alignment(
     concurrency: int = 20,
     api_key: str = "EMPTY",
     structured: bool = True,
+    reasoning_effort: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Score (informal, formal) pairs with the CriticLean judge."""
+    """Score (informal, formal) pairs with the alignment judge."""
     from openai import AsyncOpenAI
     from tqdm.asyncio import tqdm
 
@@ -348,6 +349,8 @@ def judge_alignment(
     kwargs: dict[str, Any] = {}
     if structured:
         kwargs["response_format"] = {"type": "json_schema", "json_schema": ALIGNMENT_SCHEMA}
+    if reasoning_effort is not None:
+        kwargs["reasoning_effort"] = reasoning_effort
 
     sampling = {"temperature": temperature, "top_p": top_p}
 
@@ -394,6 +397,7 @@ def judge_and_attach(
     judge_concurrency: int = 20,
     api_key: str = "EMPTY",
     structured: bool = True,
+    reasoning_effort: str | None = None,
 ) -> None:
     """Judge compiling rows in-place; definitions and statements get their own prompt.
 
@@ -421,6 +425,7 @@ def judge_and_attach(
             concurrency=judge_concurrency,
             api_key=api_key,
             structured=structured,
+            reasoning_effort=reasoning_effort,
         )
         for idx, judgement in zip(rows.index, judgements):
             df.at[idx, "alignment_output"] = judgement

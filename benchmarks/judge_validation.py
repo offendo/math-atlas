@@ -97,6 +97,7 @@ def run(
     judge_max_tokens: int = typer.Option(8192),
     judge_concurrency: int = typer.Option(32),
     judge_structured: bool = typer.Option(True, help="JSON-schema structured output (production setting)."),
+    judge_reasoning_effort: str | None = typer.Option(None, help="Reasoning effort for the judge (e.g. medium)."),
     n_examples: int | None = typer.Option(None, help="Subsample per benchmark (debugging)."),
 ):
     from datasets import load_dataset
@@ -119,6 +120,7 @@ def run(
             concurrency=judge_concurrency,
             api_key=judge_api_key,
             structured=judge_structured,
+            reasoning_effort=judge_reasoning_effort,
         )
         gold = df["label"].map(to_bool).to_numpy()
         pred = np.array([j["result"] == "aligned" for j in judgements])
@@ -137,6 +139,7 @@ def run(
                     metrics["balanced_accuracy"], metrics["cohen_kappa"], metrics["parse_errors"])
 
     out = {"judge_model": judge_model, "tag": tag, "structured": judge_structured,
+           "reasoning_effort": judge_reasoning_effort, "max_tokens": judge_max_tokens,
            "statement_prompt": str(judge_prompt_file), "definition_prompt": str(judge_definition_prompt_file),
            "benchmarks": summary}
     (output_dir / f"{tag}.metrics.json").write_text(json.dumps(out, indent=2))

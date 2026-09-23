@@ -46,6 +46,7 @@ def run(
     judge_max_tokens: int = typer.Option(8192, help="Max judge output tokens."),
     judge_concurrency: int = typer.Option(20, help="Concurrent judge requests."),
     judge_structured: bool = typer.Option(True, help="Request JSON-schema structured judge output."),
+    judge_reasoning_effort: str | None = typer.Option(None, help="Reasoning effort for the judge (e.g. medium)."),
 ):
     """Attach alignment judgements to a finished run and recompute the metrics."""
     df = pd.read_json(input)
@@ -63,6 +64,7 @@ def run(
         judge_concurrency=judge_concurrency,
         api_key=judge_api_key,
         structured=judge_structured,
+        reasoning_effort=judge_reasoning_effort,
     )
 
     out_path = output or input
@@ -77,6 +79,9 @@ def run(
 
         config = json.loads(prev_metrics.read_text()).get("config", {})
     config["judge_model"] = judge_model
+    config["judge_settings"] = {"max_tokens": judge_max_tokens, "reasoning_effort": judge_reasoning_effort,
+                                "structured": judge_structured, "statement_prompt": str(judge_prompt_file),
+                                "definition_prompt": str(judge_definition_prompt_file)}
     common.save_results(df, metrics, out_path, config)
 
 
