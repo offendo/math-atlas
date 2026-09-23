@@ -243,6 +243,29 @@ single-pass/K5 ≈ $15–30, gpt-5.2 generation + judging ≈ $20–40.
 
 ---
 
+## 4b. Current state (Sep 23, 14:15): generation only, judging deferred
+
+At the user's request, **judging is deferred.** Every judge will be re-run after the judge
+itself is improved. The campaign now produces raw generations only.
+- **The CriticLean-32B container died** some time between 10:12 and 13:24 on Sep 23 (it ran
+  with `--rm`, so there are no logs). From then on, every judge call failed with "Connection
+  error".
+  - The only file it affected is `claude-code-sonnet.none.json`: its bogus all-"misaligned"
+    verdicts were stripped. The original is kept as `…none.json.bogus-judge.bak`, and the metrics
+    are now compile-only.
+  - The orchestrator (`run_iclr_experiments.sh`) was stopped, so no other file gets garbage
+    verdicts. GPUs 1–2 are now in use by another job.
+- **Judged numbers already in the tables** (everything judged before 10:12, including
+  `claude-code-sonnet.dep`) used CriticLean-32B with the production prompts. They will be
+  superseded by the new judge.
+- **To judge everything with the new judge:** serve it, validate it with
+  `benchmarks/judge_validation.py --tag <tag>`, then run
+  `scripts/judge_all.sh <model> <url> <tag> [--judge-prompt-file … --judge-definition-prompt-file …]`.
+  This writes to `outputs/iclr/judged/<tag>/`, never touches the raw files, skips finished
+  files, and refuses to start if the endpoint is down. Then run `report.py` / `run_iclr_analysis.sh`
+  on that directory. For multi-judge agreement (E3b), run `judge_all.sh` once per judge and pass
+  the parent directory to `report.py --rejudge-dir`.
+
 ## 5. Remaining gaps (not covered by this campaign)
 
 - **OpenAI credits ran out at 02:16 on Sep 23** (`insufficient_quota`).
