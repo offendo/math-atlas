@@ -27,6 +27,7 @@ import typer
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import common  # noqa: E402
+from dependency_context import DEFAULT_DATA, MODES, DependencyContext  # noqa: E402
 from generators import build_generator  # noqa: E402
 
 app = typer.Typer(pretty_exceptions_show_locals=False)
@@ -37,9 +38,13 @@ logger.setLevel(logging.INFO)
 PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
 
 
-def build_initial_conversation(row, system_prompt: str, theorem_tmpl: str, definition_tmpl: str) -> list[dict[str, str]]:
+def build_initial_conversation(
+    row, system_prompt: str, theorem_tmpl: str, definition_tmpl: str, dep_block: str = ""
+) -> list[dict[str, str]]:
     tmpl = definition_tmpl if row["type"] in common.DEFINITION_TYPES else theorem_tmpl
     user = tmpl.format(text=row["text"], item_type=row["type"])
+    if dep_block:  # prerequisites first, then the task (E2a)
+        user = f"{dep_block}\n\n## Task\n{user}"
     return [{"role": "system", "content": system_prompt}, {"role": "user", "content": user}]
 
 
@@ -69,6 +74,7 @@ def run(
     # --- generation ---------------------------------------------------------
     model: str = typer.Option(..., help="Model name (HF path for offline vLLM, or served model name)."),
     model_url: str | None = typer.Option(None, help="OpenAI-compatible base URL. Omit to run vLLM in-process."),
+    backend: str = typer.Option("auto", help="`auto` (endpoint if --model-url, else in-process vLLM) or `claude-cli`."),
     api_key: str = typer.Option("EMPTY", envvar="OPENAI_API_KEY", help="API key for --model-url."),
     api_style: str = typer.Option("chat", help="`chat` (completions) or `responses`."),
     reasoning_effort: str | None = typer.Option(None, help="Reasoning effort, if the endpoint supports it."),
@@ -80,6 +86,11 @@ def run(
     tensor_parallel_size: int = typer.Option(1, help="vLLM tensor parallel size (offline mode)."),
     max_model_len: int = typer.Option(32768, help="vLLM max model length (offline mode)."),
     gpu_memory_utilization: float = typer.Option(0.90, help="vLLM GPU memory fraction (offline mode)."),
+    # --- dependency-graph context (E2a) --------------------------------------
+    dependency_context: str = typer.Option("none", help=f"Prerequisite block in the prompt: {', '.join(MODES)}."),
+    max_deps: int = typer.Option(12, help="Max direct dependencies shown."),
+    dep_chars: int = typer.Option(800, help="Truncate each dependency's informal text to this many characters."),
+    mathatlas_data: Path = typer.Option(DEFAULT_DATA, help="MathAtlas NDJSON (the graph the MCP serves)."),
     # --- loop ---------------------------------------------------------------
     max_rounds: int = typer.Option(5, help="Max attempts per item (1 == single-pass control)."),
     max_history_rounds: int = typer.Option(2, help="Repair turns kept in context; 0 = keep everything."),
@@ -131,9 +142,18 @@ def run(
         tensor_parallel_size=tensor_parallel_size,
         max_model_len=max_model_len,
         gpu_memory_utilization=gpu_memory_utilization,
+        backend=backend,
     )
 
-    conversations = [build_initial_conversation(row, system_prompt, theorem_tmpl, definition_tmpl) for _, row in df.iterrows()]
+    deps = DependencyContext(dependency_context, mathatlas_data, max_deps=max_deps, dep_chars=dep_chars, seed=seed)
+    dep_blocks = [deps.block(str(u)) for u in df["uuid"]]
+    if dependency_context != "none":
+        n_with = sum(bool(b) for b, _ in dep_blocks)
+        logger.info("Dependency context `%s`: %d/%d items get a block", dependency_context, n_with, len(df))
+    conversations = [
+        build_initial_conversation(row, system_prompt, theorem_tmpl, definition_tmpl, dep_blocks[i][0])
+        for i, (_, row) in enumerate(df.iterrows())
+    ]
     history: list[list[dict]] = [[] for _ in range(len(df))]
     final_code: list[str] = ["" for _ in range(len(df))]
     final_compiler: list[dict | None] = [None for _ in range(len(df))]
@@ -194,6 +214,8 @@ def run(
             "n_rounds": n_rounds,
             "verified": [bool((c or {}).get("verified")) for c in final_compiler],
             "degenerate": [common.is_degenerate(c) for c in final_code],
+            "dep_ids": [m["dep_ids"] for _, m in dep_blocks],
+            "dep_block_chars": [m["dep_block_chars"] for _, m in dep_blocks],
         }
     )
 
@@ -216,6 +238,15 @@ def run(
         "baseline": "B1-iterative-compile-repair",
         "model": model,
         "model_url": model_url,
+        "backend": backend,
+        "generation_cost_usd": getattr(generator, "total_cost_usd", None),
+        "models_seen": sorted(getattr(generator, "models_seen", []) or []) or None,
+        "dependency_context": dependency_context,
+        "max_deps": max_deps,
+        "dep_chars": dep_chars,
+        "system_prompt_file": str(system_prompt_file),
+        "theorem_prompt_file": str(theorem_prompt_file),
+        "definition_prompt_file": str(definition_prompt_file),
         "dataset": dataset,
         "split": split,
         "item_type": list(item_type),

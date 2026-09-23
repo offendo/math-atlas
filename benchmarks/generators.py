@@ -1,10 +1,11 @@
 """Chat generation backends shared by the iterative baselines.
 
-Two backends, same interface:
-  * `OpenAIGenerator` -- any OpenAI-compatible endpoint (vLLM server, OpenAI, ...)
-  * `VLLMGenerator`   -- offline in-process vLLM
+Three backends, same interface:
+  * `OpenAIGenerator`    -- any OpenAI-compatible endpoint (vLLM server, OpenAI, ...)
+  * `VLLMGenerator`      -- offline in-process vLLM
+  * `ClaudeCLIGenerator` -- Claude models through the logged-in `claude` CLI
 
-Both take a list of conversations and return one completion per conversation,
+All take a list of conversations and return one completion per conversation,
 in order, which is what a multi-round repair loop needs.
 """
 
@@ -49,7 +50,11 @@ class OpenAIGenerator(BaseGenerator):
         self.top_p = top_p
         self.concurrency = concurrency
         self.reasoning_effort = reasoning_effort
-        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key) if base_url else AsyncOpenAI()
+        import os
+
+        # An empty $OPENAI_BASE_URL (set on this machine) breaks the SDK default.
+        default_url = os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key) if base_url else AsyncOpenAI(base_url=default_url)
         # Some hosted models (e.g. GPT-5 family) reject sampling params; we drop
         # them permanently after the first rejection instead of failing the run.
         self._drop_sampling = False
@@ -136,6 +141,87 @@ class VLLMGenerator(BaseGenerator):
         return [o.outputs[0].text for o in outputs]
 
 
+class ClaudeCLIGenerator(BaseGenerator):
+    """Claude models through the logged-in `claude` CLI, as a plain model.
+
+    Each call is `claude -p` with every tool disabled (`--tools ""`), the system
+    prompt replaced, no settings/MCP/session persistence, run from an empty scratch
+    directory -- so the model sees only our conversation. The CLI takes a single
+    prompt, so repair rounds are serialized into one transcript (previous answer +
+    compiler feedback), which carries the same information as the chat history the
+    OpenAI backend sends. The CLI exposes no sampling controls, so `temperature`
+    and `seed` are ignored (recorded as such in the run config).
+    """
+
+    def __init__(
+        self,
+        model: str,
+        claude_bin: str = "claude",
+        concurrency: int = 16,
+        timeout: int = 600,
+        max_retries: int = 3,
+        workdir: str | None = None,
+    ):
+        import tempfile
+
+        self.model = model
+        self.claude_bin = claude_bin
+        self.concurrency = concurrency
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.workdir = workdir or tempfile.mkdtemp(prefix="claude-cli-gen-")
+        self.total_cost_usd = 0.0
+        self.models_seen: set[str] = set()
+
+    @staticmethod
+    def serialize(conversation: Conversation) -> tuple[str, str]:
+        system = "\n\n".join(m["content"] for m in conversation if m["role"] == "system")
+        turns = [m for m in conversation if m["role"] != "system"]
+        prompt = turns[0]["content"] if turns else ""
+        for msg in turns[1:]:
+            if msg["role"] == "assistant":
+                prompt += f"\n\n---\nYour previous answer was:\n\n{msg['content']}"
+            else:
+                prompt += f"\n\n---\n{msg['content']}"
+        return system, prompt
+
+    def _one(self, conversation: Conversation) -> str:
+        import json
+        import subprocess
+        import time
+
+        system, prompt = self.serialize(conversation)
+        cmd = [
+            self.claude_bin, "-p", "--model", self.model, "--output-format", "json",
+            "--tools", "", "--no-session-persistence", "--strict-mcp-config", "--setting-sources", "",
+        ]
+        if system:
+            cmd += ["--system-prompt", system]
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                proc = subprocess.run(
+                    cmd, input=prompt, capture_output=True, text=True, timeout=self.timeout, cwd=self.workdir
+                )
+                payload = json.loads(proc.stdout)
+                if payload.get("is_error"):
+                    raise RuntimeError(f"{payload.get('subtype')}: {str(payload.get('result'))[:200]}")
+                self.total_cost_usd += float(payload.get("total_cost_usd") or 0.0)
+                self.models_seen.update((payload.get("modelUsage") or {}).keys())
+                return payload.get("result") or ""
+            except Exception as e:  # rate limits, timeouts, malformed output
+                logger.warning("claude CLI call failed (attempt %d/%d): %s", attempt, self.max_retries, str(e)[:300])
+                time.sleep(20 * attempt)
+        return ""
+
+    def chat(self, conversations: Sequence[Conversation], temperature: float, seed: int | None = None) -> list[str]:
+        from concurrent.futures import ThreadPoolExecutor
+
+        from tqdm import tqdm
+
+        with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+            return list(tqdm(pool.map(self._one, conversations), total=len(conversations), desc="Generating (claude)"))
+
+
 def build_generator(
     model: str,
     model_url: str | None,
@@ -148,7 +234,10 @@ def build_generator(
     tensor_parallel_size: int,
     max_model_len: int,
     gpu_memory_utilization: float,
+    backend: str = "auto",
 ) -> BaseGenerator:
+    if backend == "claude-cli":
+        return ClaudeCLIGenerator(model=model, concurrency=concurrency)
     if model_url:
         return OpenAIGenerator(
             model=model,

@@ -254,6 +254,9 @@ def parse_judgement(raw: str) -> dict[str, Any]:
     """Parse judge output; mirrors scripts/run_alignment_benchmark.py:try_parse."""
     try:
         text, thinking = raw, None
+        harmony = HARMONY_PATTERN.findall(text)  # gpt-oss without a reasoning parser
+        if harmony:
+            text = harmony[-1]
         if "</think>" in text:
             thinking, text = text.split("</think>", 1)
         if "<consistency>" in text:
@@ -261,7 +264,10 @@ def parse_judgement(raw: str) -> dict[str, Any]:
             return {"result": "aligned" if verdict == "Correct" else "misaligned", "reasoning": text, "error": None}
         if "```" in text:
             text = re.sub(r"```(?:json)?", "", text)
-        out = json.loads(text.strip())
+        text = text.strip()
+        if not text.startswith("{") and "{" in text:
+            text = text[text.index("{"): text.rindex("}") + 1]
+        out = json.loads(text)
         result = str(out.get("result", "misaligned"))
         out["result"] = "aligned" if result in {"aligned", "Correct", "correct", "True", "true"} else "misaligned"
         out.setdefault("reasoning", "")
@@ -269,6 +275,14 @@ def parse_judgement(raw: str) -> dict[str, Any]:
         return out
     except Exception as e:  # unparseable judge output counts as misaligned
         return {"result": "misaligned", "reasoning": raw, "error": str(e)}
+
+
+def default_openai_url() -> str:
+    """$OPENAI_BASE_URL, unless unset *or empty* -- an empty value (set on this
+    machine) makes the SDK post to "" and fail with a bare "Connection error"."""
+    import os
+
+    return os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
 
 
 def judge_alignment(
@@ -291,28 +305,40 @@ def judge_alignment(
         return []
     template = Path(prompt_file).read_text()
     prompts = [make_judge_prompt(i, f, template) for i, f in pairs]
-    client = AsyncOpenAI(base_url=model_url, api_key=api_key) if model_url else AsyncOpenAI()
+    client = AsyncOpenAI(base_url=model_url, api_key=api_key) if model_url else AsyncOpenAI(base_url=default_openai_url())
     semaphore = asyncio.Semaphore(concurrency)
 
     kwargs: dict[str, Any] = {}
     if structured:
         kwargs["response_format"] = {"type": "json_schema", "json_schema": ALIGNMENT_SCHEMA}
 
+    sampling = {"temperature": temperature, "top_p": top_p}
+
     async def complete(prompt):
         async with semaphore:
-            try:
-                resp = await client.chat.completions.create(
-                    model=model,
-                    messages=prompt,
-                    temperature=temperature,
-                    top_p=top_p,
-                    max_completion_tokens=max_tokens,
-                    **kwargs,
-                )
-                return resp.choices[0].message.content or ""
-            except Exception as e:
-                logger.warning("Judge call failed: %s", e)
-                return f"JUDGE_ERROR: {e}"
+            for attempt in range(3):
+                try:
+                    resp = await client.chat.completions.create(
+                        model=model,
+                        messages=prompt,
+                        max_completion_tokens=max_tokens,
+                        **sampling,
+                        **kwargs,
+                    )
+                    return resp.choices[0].message.content or ""
+                except Exception as e:
+                    msg = str(e)
+                    # Hosted reasoning models (gpt-5.x) reject sampling params: drop them for the run.
+                    if attempt < 2 and any(p in msg for p in ("temperature", "top_p", "unsupported_value")):
+                        logger.warning("Judge endpoint rejected sampling params; retrying without them")
+                        sampling.clear()
+                        continue
+                    if attempt < 2 and any(p in msg.lower() for p in ("rate limit", "429", "timeout", "overloaded", "502", "503")):
+                        await asyncio.sleep(10 * (attempt + 1))
+                        continue
+                    logger.warning("Judge call failed: %s", e)
+                    return f"JUDGE_ERROR: {e}"
+            return "JUDGE_ERROR: retries exhausted"
 
     async def _run():
         return await tqdm.gather(*[complete(p) for p in prompts], desc="Judging")

@@ -429,6 +429,8 @@ def run(
     )
     logger.info("MCP servers: %s", ", ".join(sorted(mcp_servers)))
     template = prompt_file.read_text()
+    if "{entity_id}" in template and "mathatlas" not in mcp_servers:
+        raise typer.BadParameter(f"`{prompt_file.name}` drives the MathAtlas tools; pass --mathatlas-project.")
 
     if concurrency > 1:
         logger.warning("concurrency=%d: agents share one Lake project; expect lock contention.", concurrency)
@@ -448,6 +450,7 @@ def run(
             items_dir=str(items_dir),
             index_file=str(index_path),
             lib_name=lib,
+            entity_id=row["uuid"],
         )
         item_mcp = write_mcp_config(mcp_servers, scratch / "mcp" / f"{mod}.json", row["uuid"])
         agent = run_agent(
@@ -539,6 +542,7 @@ def run(
         "project": str(proj),
         "lib_name": lib,
         "allowed_tools": allowed_tools,
+        "prompt_file": str(prompt_file),
         "mcp_servers": sorted(mcp_servers),
         "mcp_config": [str(p) for p in mcp_config],
         "mathatlas_project": str(mathatlas_project) if mathatlas_project else None,
