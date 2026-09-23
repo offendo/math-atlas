@@ -1,0 +1,206 @@
+% ICLR revision experiments -- status snapshot 2026-09-23 12:53 (PT).
+% Generated from outputs/iclr/analysis (benchmarks/analysis/report.py); see ICLR-EXPERIMENTS.md.
+% Needs booktabs, colortbl, xcolor, multirow (all loaded by neurips_2026.tex).
+% "Correct" = compiles AND judged faithful by CriticLean-32B; "Faithful" is among compiling outputs.
+% "Adj." = judge-error-adjusted correct (Rogan--Gladen with CriticLean's MA-Align sensitivity/specificity).
+% Square brackets are 95% Wilson CIs. Nothing here is human-verified yet (E3a pending).
+\providecommand{\datasetname}{\textsl{MathAtlas}}
+\providecommand{\hardname}{\textsl{MA-Hard}}
+\providecommand{\alignmentname}{\textsl{MA-Align}}
+\providecommand{\ci}[2]{{\scriptsize[#1, #2]}}
+\providecommand{\pend}[1]{\textit{#1}}
+
+% =========================================================================== %
+%                                MathAtlas                                     %
+% =========================================================================== %
+
+\begin{table}[t]
+  \centering
+  \caption{Full-set (\datasetname) autoformalization results recomputed from the per-item outputs
+  behind Table~\ref{tab:baseline-results}. ``Paper'' is the value currently reported. Open-split
+  rows restrict to the public release (\texttt{offendo/math-atlas-official} test and hard splits).}
+  \label{tab:iclr-mathatlas-recomputed}
+  \vspace{0.5em}
+  \small
+  \begin{tabular}{@{}lllll@{}}
+    \toprule
+    Model & Compiles & Faithful & Correct & Paper (correct) \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{5}{c}{\textbf{Statements (full set)}} \\
+    ReForm 8B      & 19.0\% & 48.4\% & 9.2\% \ci{8.9}{9.5} & 9.8\% \\
+    Kimina 7B      & 27.3\% & 8.3\%  & 2.3\% \ci{2.1}{2.4} & 2.3\% \\
+    Herald 7B, Goedel 8B/32B, ATLAS 8B & \multicolumn{3}{c}{\pend{recomputed in final analysis}} & -- \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{5}{c}{\textbf{Definitions (full set)}} \\
+    gpt-oss-120b (\texttt{definitions.aligned})          & -- & -- & 16.7\% & 16.7\% (``+tuned exs.'') \\
+    gpt-oss-120b (\texttt{few\_shot\_tuned\_examples})   & 19.4\% & 78.6\% & 15.3\% \ci{14.7}{15.9} & 15.3\% (``+tuned prompt'') \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{5}{c}{\textbf{Open split}} \\
+    Kimina 7B (open, 22{,}727 of 45{,}260 statements) & 24.3\% & 8.9\% & 2.2\% \ci{2.0}{2.3} & 2.2\% \\
+    gpt-oss-120b defs (\texttt{few\_shot\_tuned\_examples}, open) & 19.0\% & 78.5\% & 15.0\% \ci{14.1}{15.9} & -- \\
+    Remaining systems & \multicolumn{3}{c}{\pend{recomputed in final analysis}} & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[t]
+  \centering
+  \caption{Faithfulness judges on \alignmentname{} and prior benchmarks, run through the exact
+  judging path used to score all systems (same prompts, structured output, parser). Bal.\ = balanced
+  accuracy; Sens./Spec.\ = recall on aligned/misaligned items; Maj.\ = always-majority baseline.
+  \alignmentname{} statements are 25\% aligned. gpt-5.2 ConsistencyCheck/CriticLeanBench runs
+  failed (API credits exhausted) and are omitted.}
+  \label{tab:iclr-judge-validation}
+  \vspace{0.5em}
+  \small
+  \begin{tabular}{@{}llllllll@{}}
+    \toprule
+    Benchmark & Acc. & Paper acc. & Bal. & Sens. & Spec. & $\kappa$ & Maj. \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{8}{c}{\textbf{CriticLean (32B)}} \\
+    \alignmentname{} Defs.   & 67.0 & 80.0 & 67.0 & 66.0 & 68.0 & 0.34 & 50.0 \\
+    \alignmentname{} Stmts.  & 68.0 & 75.0 & 77.3 & 96.0 & 58.7 & 0.39 & 75.0 \\
+    ConsistencyCheck         & 76.5 & 82.6 & 77.4 & 74.6 & 80.3 & 0.51 & 66.4 \\
+    CriticLeanBench          & 82.0 & 86.4 & 82.0 & 76.4 & 87.6 & 0.64 & 50.0 \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{8}{c}{\textbf{gpt-5.2 (Our Prompt)}} \\
+    \alignmentname{} Defs.   & 79.0 & 86.0 & 79.0 & 74.0 & 84.0 & 0.58 & 50.0 \\
+    \alignmentname{} Stmts.  & 85.0 & 80.0 & 82.0 & 76.0 & 88.0 & 0.62 & 75.0 \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{8}{c}{\textbf{gpt-oss-120b}} \\
+    All benchmarks & \multicolumn{7}{c}{\pend{queued (runs after CriticLean judging)}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[t]
+  \centering
+  \caption{Dependency depth: correctness and robustness. Top: depth recomputed with cycle handling
+  (strongly connected components condensed) versus the paper's depth, and stability under 9\%
+  relation-extraction noise (100 replicates each). Bottom: linear probability model of correctness,
+  in percentage points per standard deviation of depth, with textbook fixed effects and controls
+  (mass, length, \#references, Mathlib grounding, type); SEs clustered by textbook.}
+  \label{tab:iclr-depth}
+  \vspace{0.5em}
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    Setting & Depth rank $\rho$ & \hardname{} overlap (Jaccard) \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{3}{c}{\textbf{Corrected vs.\ paper depth}} \\
+    SCC-corrected depth (64\% of items change) & 0.93 & 0.40 \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{3}{c}{\textbf{9\% of edges perturbed (mean; 2.5th pct.)}} \\
+    Drop edges              & 0.90; 0.86 & 0.32; 0.08 \\
+    Rewire to earlier item  & 0.81; 0.74 & 0.10; 0.01 \\
+    Rewire to any item      & 0.71; 0.66 & 0.06; 0.01 \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{1em}
+  \begin{tabular}{@{}lllll@{}}
+    \toprule
+    System (split) & Correct & Pooled & Textbook FE & FE under noise \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{5}{c}{\textbf{Statements}} \\
+    ReForm 8B (45{,}259)  & 9.2\% & $-3.3$ & $-4.6$ \ci{$-6.3$}{$-3.0$} & $-0.5$ \ci{$-1.3$}{$+0.2$} \\
+    Goedel 8B (45{,}260)  & 7.1\% & $-3.2$ & $-3.3$ \ci{$-4.7$}{$-1.9$} & $-0.8$ \ci{$-1.5$}{$-0.3$} \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{5}{c}{\textbf{Definitions}} \\
+    gpt-oss-120b, \texttt{tuned\_examples} file (12{,}913) & 15.3\% & $-6.2$ & $-6.7$ \ci{$-9.7$}{$-3.8$} & $-1.3$ \ci{$-2.5$}{$-0.1$} \\
+    gpt-oss-120b, default file (12{,}913)                  & 16.7\% & $-6.6$ & $-6.1$ \ci{$-8.9$}{$-3.3$} & $-1.2$ \ci{$-3.1$}{$0.0$} \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{5}{c}{\textbf{Mathlib grounding (definitions, stratified by textbook)}} \\
+    gpt-oss-120b, both files & \multicolumn{4}{l}{21--24\% vs.\ 12--13\% correct; CMH odds ratio 1.51--1.56, $p<10^{-10}$} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% =========================================================================== %
+%                                  MA-Hard                                     %
+% =========================================================================== %
+
+\begin{table*}[t]
+  \centering
+  \caption{Results on \hardname{} (698 items: 622 statements, 76 definitions). ``Correct'' requires
+  compiling and a faithful judgement; ``Faithful'' is among compiling outputs; ``Adj.'' corrects
+  correctness for the judge's measured error rates (Table~\ref{tab:iclr-judge-validation}); ``Defs.''
+  is correctness on the 76 definitions. Dependency context: none, informal text of the item's direct
+  prerequisites, their Mathlib names, both, or a matched random-definition control. K5 = up to five
+  rounds of compiler feedback. Status as of Sep.~23, 12:53.}
+  \label{tab:iclr-mahard}
+  \vspace{0.5em}
+  \small
+  \begin{tabular}{@{}llllll@{}}
+    \toprule
+    Model / setting & Compiles & Faithful & Correct & Adj. & Defs. \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Dependency context, single pass (gpt-oss-120b)}} \\
+    None                 & 8.6\% \ci{6.7}{10.9} & 23.3\% & 2.0\% \ci{1.2}{3.3} & 0.7\% & 5.3\% \\
+    + informal deps.     & 7.2\% \ci{5.5}{9.3}  & 30.0\% & 2.1\% \ci{1.3}{3.5} & 0.9\% & 6.6\% \\
+    + Mathlib names      & 7.9\% \ci{6.1}{10.1} & 29.1\% & 2.3\% \ci{1.4}{3.7} & 0.0\% & 1.3\% \\
+    + both               & 7.2\% \ci{5.5}{9.3}  & 30.0\% & 2.1\% \ci{1.3}{3.5} & 0.6\% & 3.9\% \\
+    + random (control)   & 5.6\% \ci{4.1}{7.5}  & 28.2\% & 1.6\% \ci{0.9}{2.8} & 0.7\% & 5.3\% \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Compiler feedback, K5 (gpt-oss-120b)}} \\
+    None                 & 34.7\% \ci{31.2}{38.3} & 12.0\% & 4.2\% \ci{2.9}{5.9} & 0.0\% & 7.9\% \\
+    + both               & 27.2\% \ci{24.1}{30.6} & 20.5\% & 5.6\% \ci{4.1}{7.5} & 0.2\% & 7.9\% \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Frontier models, single pass}} \\
+    gpt-5.2              & 12.8\% \ci{10.5}{15.4} & 16.9\% & 2.1\% \ci{1.3}{3.5}   & 0.0\% & 3.9\% \\
+    \hspace{0.5em}+ both & 17.8\% \ci{15.1}{20.8} & 16.9\% & 3.0\% \ci{2.0}{4.6}   & 0.9\% & 7.9\% \\
+    Sonnet               & 55.2\% \ci{51.4}{58.8} & 22.9\% & 12.6\% \ci{10.3}{15.3} & 6.3\% & 46.1\% \\
+    \hspace{0.5em}+ both & 54.4\% \ci{50.7}{58.1} & 21.1\% & 11.5\% \ci{9.3}{14.0}  & 4.7\% & 31.6\% \\
+    \hspace{0.5em}+ random (control) & 65.6\% \ci{62.0}{69.0} & 21.6\% & 14.2\% \ci{11.8}{17.0} & 6.3\% & 42.1\% \\
+    Sonnet, K5           & \multicolumn{5}{c}{\pend{queued}} \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Agentic: Claude Code (Sonnet), \$0.75/item cap}} \\
+    No MathAtlas tools                 & \multicolumn{5}{c}{\pend{running (299/698)}} \\
+    MathAtlas tools optional           & \multicolumn{5}{c}{\pend{queued}} \\
+    Dependency-aware (enforced)        & 97.3\% \ci{95.8}{98.3} & 27.8\% & 27.1\% \ci{23.9}{30.5} & 5.8\% & 50.0\% \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Earlier runs (Sep.~6; older Mathlib, \$0.50/item cap)}} \\
+    gpt-oss-120b                       & 9.2\%  \ci{7.2}{11.5}  & 29.7\% & 2.7\% \ci{1.7}{4.2}   & 0.5\% & 5.3\% \\
+    \hspace{0.5em}+ K5                 & 35.2\% \ci{31.8}{38.9} & 12.6\% & 4.4\% \ci{3.1}{6.2}   & 0.7\% & 14.5\% \\
+    gpt-5-mini                         & 25.1\% \ci{22.0}{28.4} & 22.3\% & 5.6\% \ci{4.1}{7.5}   & 0.7\% & 11.8\% \\
+    \hspace{0.5em}+ K5                 & 72.2\% \ci{68.8}{75.4} & 15.5\% & 11.2\% \ci{9.0}{13.7} & 2.9\% & 34.2\% \\
+    Claude Code (tools optional)       & 92.8\% \ci{90.7}{94.5} & 31.5\% & 29.2\% \ci{26.0}{32.7} & 9.3\% & 59.2\% \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Paper systems re-scored on \hardname{} (statements only, $n=622$)}} \\
+    ReForm 8B        & 5.0\%  \ci{3.5}{7.0}  & 38.7\% & 1.9\% \ci{1.1}{3.3} & 0.0\% & -- \\
+    Goedel 8B        & 6.6\%  \ci{4.9}{8.8}  & 19.5\% & 1.3\% \ci{0.7}{2.5} & 0.0\% & -- \\
+    Goedel 32B       & 8.2\%  \ci{6.3}{10.6} & 17.6\% & 1.4\% \ci{0.8}{2.7} & 0.0\% & -- \\
+    Kimina 7B        & 12.2\% \ci{9.9}{15.0} & 1.3\%  & 0.2\% \ci{0.0}{0.9} & 0.0\% & -- \\
+    Herald 7B        & 3.4\%  \ci{2.2}{5.1}  & 19.0\% & 0.6\% \ci{0.3}{1.6} & 0.0\% & -- \\
+    gpt-oss-120b (zs)          & 5.6\%  \ci{4.1}{7.7}   & 31.4\% & 1.8\% \ci{1.0}{3.1} & 0.0\% & -- \\
+    gpt-oss-120b (tuned prompt) & 7.1\% \ci{5.3}{9.4}   & 27.3\% & 1.9\% \ci{1.1}{3.3} & 0.0\% & -- \\
+    gpt-oss-120b (default)     & 15.1\% \ci{12.5}{18.1} & 14.9\% & 2.3\% \ci{1.3}{3.7} & 0.0\% & -- \\
+    \midrule
+    \rowcolor{gray!20}
+    \multicolumn{6}{c}{\textbf{Prompt ablation, single pass (gpt-oss-120b): first four columns theorems ($n=622$), Defs.\ definitions ($n=76$)}} \\
+    Base prompt                           & 7.1\%  & 25.0\% & 1.8\% & 0.0\% & 0.0\% \\
+    \hspace{0.5em}+ LeanWorkbook exs.     & 6.3\%  & 20.5\% & 1.3\% & 0.0\% & -- \\
+    \hspace{0.5em}+ graduate exs.         & 8.2\%  & 17.6\% & 1.4\% & 0.0\% & 6.6\% \\
+    Tuned prompt                          & 6.3\%  & 17.9\% & 1.1\% & 0.0\% & 13.2\% \\
+    \hspace{0.5em}+ LeanWorkbook exs.     & 7.6\%  & 21.3\% & 1.6\% & 0.0\% & -- \\
+    \hspace{0.5em}+ graduate exs.         & 11.6\% & 19.4\% & 2.3\% & 0.0\% & 2.6\% \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
