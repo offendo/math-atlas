@@ -330,6 +330,25 @@ Paired McNemar tests (Holm-adjusted over 18 contrasts):
   judge-adjusted value is 64%. Rankings are stable, levels are not. The human check (E3a) decides
   which level is right. Sheets: `outputs/iclr/annotation/` (174 rows, guidelines included).
 
+### MA-Align labels re-verified (Sep 24)
+All 200 MA-Align pairs were re-judged by hand, blind to the original label:
+`benchmarks/labels/ma-align-relabel.tsv` (label, confidence, reasoning per item). Existing judge
+outputs are re-scored against it, without re-running any judge:
+`benchmarks/analysis/rescore_ma_align.py` → `outputs/iclr/judge-validation-relabel/`
+(`summary.md`, plus `<tag>.metrics.json` in judge_validation's schema).
+- **Defs: 25/100 labels change (50 → 71 aligned).** 23 are misaligned → aligned. The original
+  labels follow the strict rubric in `prompts/definition_alignment.txt`: reusing a matching Mathlib
+  definition is misaligned (empty set, `Complex.exp`, `Int.ModEq`), and so is any harmless
+  generalization (k=0 allowed, `Ring` for `Field`, no `a ≠ 0` on gcd). Some original rationales are
+  also wrong: (−1)•x gives negatives in a module over a field (item 9), and `(⊤ : Ideal B).jacobson`
+  is ⊤, not the radical (item 89, aligned → misaligned).
+- **Stmts: 9/100 change (25 → 32 aligned).** Item 16 (existence of a minimizer for an arbitrary I)
+  becomes misaligned; eight exact transcriptions become aligned.
+- Qwen-medium: defs acc 88 → 75 (majority 71), sens 0.94 → 0.72, spec 0.82 → 0.83; stmts acc
+  66 → 71, sens 1.00 → 0.97, spec 0.55 → 0.59. Most of the defs drop comes from the judge prompt
+  itself, which instructs the strict rubric. Under the new labels, the definition prompt, not
+  only the model, sets the judge's sensitivity.
+
 ## 5. Remaining gaps (not covered by this campaign)
 
 - **OpenAI credits ran out at 02:16 on Sep 23** (`insufficient_quota`).
