@@ -26,16 +26,19 @@ for noise in drop rewire-backward rewire; do
     "$PY" scripts/graph_depth.py --reps "$REPS" --noise "$noise" --output-dir "$OUT/depth" > "$A/depth.$noise.log" 2>&1
 done
 
-echo "== E0/E1/E2/E3/E6 report"
+# The judge is Qwen3.8-27B (open weights; no proprietary judge), run by scripts/judge_all.sh
+# into $OUT/judged/$JUDGE_TAG. JUDGE_VALIDATION_TAG picks the judge_validation.py run whose
+# MA-Align sensitivity/specificity drive the judge-adjusted column.
+JUDGE_TAG="${JUDGE_TAG:-qwen38-27b}"
+JUDGE_VALIDATION_TAG="${JUDGE_VALIDATION_TAG:-qwen38-27b-medium}"
+echo "== E0/E1/E2/E3/E6 report (judge: $JUDGE_TAG)"
 "$PY" benchmarks/analysis/report.py \
-  --runs "$OUT/iterative/*.json" --runs "$OUT/agentic/*.json" --runs "$OUT/sliced/*.json" \
-  --runs "$DATA_ROOT/outputs/iterative/*.json" --runs "$DATA_ROOT/outputs/agentic/*.json" \
-  --validation-dir "$OUT/judge-validation" --judge-tag criticlean-32b \
+  --runs "$OUT/judged/$JUDGE_TAG/*.json" \
+  --validation-dir "$OUT/judge-validation" --judge-tag "$JUDGE_VALIDATION_TAG" \
   --rejudge-dir "$OUT/rejudge" --output-dir "$A" > "$A/report.log" 2>&1
 
 echo "== E5a error taxonomy"
-"$PY" benchmarks/analysis/error_taxonomy.py --runs "$OUT/iterative/*.json" --runs "$OUT/agentic/*.json" \
-  --runs "$OUT/sliced/*.json" --runs "$DATA_ROOT/outputs/iterative/*.json" --runs "$DATA_ROOT/outputs/agentic/*.json" \
+"$PY" benchmarks/analysis/error_taxonomy.py --runs "$OUT/judged/$JUDGE_TAG/*.json" \
   --output-dir "$A" > "$A/error_taxonomy.log" 2>&1
 
 echo "== E2b agent tool usage + leak audit"
@@ -72,7 +75,7 @@ ann=()
 for spec in "claude-code-sonnet.dep:agentic:50:25" "claude-code-sonnet.none:agentic:25:10" \
             "sonnet.sp.dep-both:iterative:25:10" "gpt-oss-120b.sp.dep-none:iterative:25:10"; do
   IFS=: read -r name sub nf nu <<< "$spec"
-  f="$OUT/$sub/$name.json"
+  f="$OUT/judged/$JUDGE_TAG/$name.json"
   [[ -s "$f" ]] && ann+=(--run "$name=$f:$nf:$nu")
 done
 if (( ${#ann[@]} )) && [[ ! -s "$OUT/annotation/blind.csv" ]]; then
