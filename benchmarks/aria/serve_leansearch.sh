@@ -3,9 +3,11 @@
 #
 # Aria's configs/leansearch.yaml points at http://127.0.0.1:8003/search.
 # The pipeline puts the embedder on the first visible GPU and the reranker on
-# the rest, so it needs two: GPUS=1,2 by default.
+# the rest: GPUS=1,2 by default. With a single GPU (GPUS=1) both share it via
+# leansearch_one_gpu.py, otherwise no reranker would be loaded at all.
 #
 #   benchmarks/aria/serve_leansearch.sh            # foreground
+#   GPUS=1 benchmarks/aria/serve_leansearch.sh     # one GPU
 #   curl -s localhost:8003/health
 set -euo pipefail
 
@@ -15,6 +17,7 @@ PORT="${PORT:-8003}"
 EMBEDDER="${EMBEDDER:-Qwen/Qwen3-Embedding-8B}"   # must match the index
 RERANKER="${RERANKER:-Qwen/Qwen3-Reranker-8B}"    # the paper's Table 1 config
 
+HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$LS_ROOT"
 HF=.venv/bin/hf
 
@@ -27,4 +30,7 @@ export NUM_GPUS="${NUM_GPUS:-$(tr ',' '\n' <<< "$GPUS" | wc -l)}"
 export GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.9}"
 export PYTHONPATH="$LS_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 
+if [ "$NUM_GPUS" = 1 ]; then
+  exec .venv/bin/python "$HERE/leansearch_one_gpu.py" "$PORT"
+fi
 exec .venv/bin/python -m uvicorn leansearchv2.server:app --host 127.0.0.1 --port "$PORT"
