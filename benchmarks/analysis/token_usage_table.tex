@@ -1,0 +1,23 @@
+\begin{table}[t]
+  \centering
+  \caption{Token usage and cost per item on \hardname{} (698 items), Claude Sonnet~5 throughout.
+  Tokens are in thousands and averaged over items; ``Input'' includes cached prompt tokens
+  (cache writes and reads), and ``Calls'' is the mean number of model calls per item.
+  K5 = up to five rounds of compiler feedback. Dependency context is the informal text and Mathlib
+  names of the item's direct prerequisites, given either in the prompt (Sonnet) or through the
+  \textsc{MathAtlas} tools, optional or enforced (Claude Code).}
+  \label{tab:iclr-tokens}
+  \vspace{0.5em}
+  \small
+  \begin{tabular}{@{}lrrrrrr@{}}
+    \toprule
+    Setting & Calls & Input & Output & Total & \$/item & Total \$ \\
+    \midrule
+    Sonnet                      & 1.0 & 13.5  & 0.4 & 14.0  & 0.031 & 21.76  \\
+    Sonnet, K5                  & 1.5 & 35.2  & 0.8 & 36.1  & 0.079 & 55.02  \\
+    Sonnet, deps in context     & 1.0 & 57.8  & 0.5 & 58.3  & 0.121 & 84.18  \\
+    Claude Code                 & 5.4 & 160.0 & 4.6 & 164.6 & 0.146 & 101.61 \\
+    Claude Code, enforced deps  & 6.9 & 229.5 & 5.6 & 235.0 & 0.191 & 133.11 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
