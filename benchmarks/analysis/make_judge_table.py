@@ -3,7 +3,7 @@
 
 Rows are the judges run through the production judging path (judge_validation.py);
 MA-Align columns are recomputed per item against benchmarks/labels/ma-align-relabel.tsv:
-balanced accuracy with a 95% stratified bootstrap CI, sensitivity /
+balanced accuracy ± 1.96 × stratified-bootstrap SE, sensitivity /
 specificity (stmts), and an exact McNemar p-value on per-item correctness vs the
 primary judge. ConsistencyCheck / CriticLeanBench balanced accuracy comes from the
 stored metrics (their labels are unchanged); runs with judge call errors print "--".
@@ -45,7 +45,7 @@ def bootstrap_bal_acc(gold: np.ndarray, pred: np.ndarray, n_boot: int = 2000, se
     for _ in range(n_boot):  # stratified, so every replicate has both classes
         p, n = rng.choice(pos, len(pos)), rng.choice(neg, len(neg))
         vals.append((pred[p].mean() + (~pred[n]).mean()) / 2)
-    return np.percentile(vals, [2.5, 97.5])
+    return 1.96 * float(np.std(vals, ddof=1))  # half-width of a normal-approximation 95% CI
 
 
 def mcnemar(correct_a: np.ndarray, correct_b: np.ndarray) -> float:
@@ -81,8 +81,8 @@ def run(
         for bench in ("ma-align-defs", "ma-align-stmts"):
             g, p = gold[bench], preds[(tag, bench)]
             m = binary_metrics(g, p)
-            lo, hi = bootstrap_bal_acc(g, p)
-            cell = f"{100 * m['balanced_accuracy']:.1f} \\ci{{{100 * lo:.1f}}}{{{100 * hi:.1f}}}"
+            half = bootstrap_bal_acc(g, p)
+            cell = f"{100 * m['balanced_accuracy']:.1f} $\\pm$ {100 * half:.1f}"
             if tag != PRIMARY:
                 pv = mcnemar(p == g, preds[(PRIMARY, bench)] == g)
                 cell += f"$^{{p={fmt_p(pv)}}}$" if pv >= 0.05 else f"$^{{p={fmt_p(pv)}*}}$"
@@ -102,8 +102,8 @@ def run(
         r"  \centering",
         r"  \caption{Faithfulness judges on \alignmentname{} (gold labels re-verified item by item) and on two",
         r"  external benchmarks, all run through the judging path used to score every system (same prompts,",
-        r"  structured output, parser). Bal.\ = balanced accuracy with 95\% bootstrap CI (items resampled",
-        r"  within each gold class); superscripts are exact",
+        r"  structured output, parser). Bal.\ = balanced accuracy $\pm$ 95\% CI half-width ($1.96\times$ the",
+        r"  standard error from 2{,}000 bootstrap resamples of items within each gold class); superscripts are exact",
         r"  McNemar $p$-values on per-item correctness against Qwen3.8-27B (* $p<0.05$). Sens./Spec.\ = recall",
         r"  on aligned/misaligned items; statement specificity is what the judge-adjusted MA-Hard scores",
         r"  correct for. A judge that always answers ``misaligned'' scores 50.0 balanced accuracy",
