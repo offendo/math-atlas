@@ -63,7 +63,7 @@ def load_labels(path: Path) -> dict[str, pd.DataFrame]:
     return {b: g.sort_values("index").reset_index(drop=True) for b, g in df.groupby("benchmark")}
 
 
-def judge_validation_preds(path: Path, labels: pd.DataFrame) -> tuple[np.ndarray, int]:
+def judge_validation_preds(path: Path, labels: pd.DataFrame) -> tuple[np.ndarray, int, int]:
     """Predictions in label order, joined on uuid; also checks the stored gold matches the original label."""
     df = pd.DataFrame(json.loads(path.read_text()))
     m = labels[["uuid", "original_label"]].merge(df, on="uuid", how="left", validate="one_to_one")
@@ -71,11 +71,13 @@ def judge_validation_preds(path: Path, labels: pd.DataFrame) -> tuple[np.ndarray
         raise ValueError(f"{path}: {int(m['pred_aligned'].isna().sum())} items missing")
     if not (m["gold_aligned"].astype(bool) == m["original_label"].map(to_bool)).all():
         raise ValueError(f"{path}: stored gold labels disagree with the dataset")
-    parse_errors = sum(json.loads(j).get("error") not in (None, "None") for j in m["judge_output"])
-    return m["pred_aligned"].astype(bool).to_numpy(), parse_errors
+    outs = [json.loads(j) for j in m["judge_output"]]
+    parse_errors = sum(o.get("error") not in (None, "None") for o in outs)
+    call_errors = sum(str(o.get("reasoning", "")).startswith("JUDGE_ERROR") for o in outs)
+    return m["pred_aligned"].astype(bool).to_numpy(), parse_errors, call_errors
 
 
-def legacy_preds(path: Path, labels: pd.DataFrame) -> tuple[np.ndarray, int]:
+def legacy_preds(path: Path, labels: pd.DataFrame) -> tuple[np.ndarray, int, int]:
     """Predictions from run_alignment_benchmark.py output (column-oriented; rows in dataset order)."""
     df = pd.read_json(path)
     df.index = df.index.astype(int)
@@ -86,7 +88,7 @@ def legacy_preds(path: Path, labels: pd.DataFrame) -> tuple[np.ndarray, int]:
     # Same rule as run_alignment_benchmark.py.
     pred = df["result"].apply(lambda x: x in {"Correct", "aligned", True}).to_numpy()
     errors = int(df["error"].notna().sum()) if "error" in df.columns else 0
-    return pred, errors
+    return pred, errors, 0
 
 
 def score(pred: np.ndarray, labels: pd.DataFrame) -> dict:
@@ -102,7 +104,7 @@ def run(
     output_dir: Path = typer.Option(Path("outputs/iclr/judge-validation-relabel")),
 ):
     labels = load_labels(labels_file)
-    sources: dict[str, dict[str, tuple[np.ndarray, int]]] = {}
+    sources: dict[str, dict[str, tuple[np.ndarray, int, int]]] = {}
     vdir = outputs_dir / "iclr" / "judge-validation"
     for f in sorted(vdir.glob("*.ma-align-*.json")):
         tag, bench = f.name[: -len(".json")].rsplit(".", 1)
@@ -119,9 +121,10 @@ def run(
         for bench in BENCHMARKS:
             if bench not in benches:
                 continue
-            pred, parse_errors = benches[bench]
+            pred, parse_errors, call_errors = benches[bench]
             s = score(pred, labels[bench])
-            summary[bench] = {**s["relabel"], "parse_errors": parse_errors, "original_labels": s["original"]}
+            summary[bench] = {**s["relabel"], "parse_errors": parse_errors, "judge_call_errors": call_errors,
+                              "original_labels": s["original"]}
             for which, m in s.items():
                 rows.append({"judge": tag, "benchmark": bench, "labels": which, "parse_errors": parse_errors,
                              **{k: v for k, v in m.items() if k != "confusion"}, **m["confusion"]})
