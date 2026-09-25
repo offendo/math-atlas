@@ -3,7 +3,7 @@
 
 Rows are the judges run through the production judging path (judge_validation.py);
 MA-Align columns are recomputed per item against benchmarks/labels/ma-align-relabel.tsv:
-balanced accuracy with a 95% bootstrap CI, Cohen's kappa (defs), sensitivity /
+balanced accuracy with a 95% stratified bootstrap CI, sensitivity /
 specificity (stmts), and an exact McNemar p-value on per-item correctness vs the
 primary judge. ConsistencyCheck / CriticLeanBench balanced accuracy comes from the
 stored metrics (their labels are unchanged); runs with judge call errors print "--".
@@ -87,8 +87,8 @@ def run(
                 pv = mcnemar(p == g, preds[(PRIMARY, bench)] == g)
                 cell += f"$^{{p={fmt_p(pv)}}}$" if pv >= 0.05 else f"$^{{p={fmt_p(pv)}*}}$"
             cells.append(cell)
-            cells += ([f"{m['cohen_kappa']:.2f}"] if bench == "ma-align-defs"
-                      else [f"{100 * m['sensitivity']:.1f}", f"{100 * m['specificity']:.1f}"])
+            if bench == "ma-align-stmts":
+                cells += [f"{100 * m['sensitivity']:.1f}", f"{100 * m['specificity']:.1f}"]
         ext = json.loads((vdir / f"{tag}.metrics.json").read_text())["benchmarks"]
         for bench in ("consistency-check", "criticleanbench"):
             m = ext.get(bench)
@@ -102,7 +102,8 @@ def run(
         r"  \centering",
         r"  \caption{Faithfulness judges on \alignmentname{} (gold labels re-verified item by item) and on two",
         r"  external benchmarks, all run through the judging path used to score every system (same prompts,",
-        r"  structured output, parser). Bal.\ = balanced accuracy with 95\% bootstrap CI; superscripts are exact",
+        r"  structured output, parser). Bal.\ = balanced accuracy with 95\% bootstrap CI (items resampled",
+        r"  within each gold class); superscripts are exact",
         r"  McNemar $p$-values on per-item correctness against Qwen3.8-27B (* $p<0.05$). Sens./Spec.\ = recall",
         r"  on aligned/misaligned items; statement specificity is what the judge-adjusted MA-Hard scores",
         r"  correct for. A judge that always answers ``misaligned'' scores 50.0 balanced accuracy",
@@ -112,12 +113,12 @@ def run(
         r"  \vspace{0.5em}",
         r"  \small",
         r"  \setlength{\tabcolsep}{4pt}",
-        r"  \begin{tabular}{@{}l cc ccc cc@{}}",
+        r"  \begin{tabular}{@{}l c ccc cc@{}}",
         r"    \toprule",
-        r"    & \multicolumn{2}{c}{\alignmentname~Defs.} & \multicolumn{3}{c}{\alignmentname~Stmts.}"
+        r"    & \alignmentname~Defs. & \multicolumn{3}{c}{\alignmentname~Stmts.}"
         r" & \multicolumn{2}{c}{External (Bal.)} \\",
-        r"    \cmidrule(lr){2-3} \cmidrule(lr){4-6} \cmidrule(l){7-8}",
-        r"    Judge & Bal. & $\kappa$ & Bal. & Sens. & Spec. & ConsistencyCheck & CriticLeanBench \\",
+        r"    \cmidrule(lr){2-2} \cmidrule(lr){3-5} \cmidrule(l){6-7}",
+        r"    Judge & Bal. & Bal. & Sens. & Spec. & ConsistencyCheck & CriticLeanBench \\",
         r"    \midrule",
         *body,
         r"    \bottomrule",
